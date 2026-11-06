@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Custom Preset Studio",
+    "description": "Create, edit, duplicate and delete custom Agent presets and manage their prompt, runtime context, skills and tools."
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "name": "dsh-my-agent-preset",
+  "version": "2.7.0",
+  "author": {
+  "name": "zkbnfcnb",
+  "email": "2104587592@qq.com"
+},
+"license": "MIT",
+"keywords": [
+  "dsh",
+  "dsh-plugin",
+  "agent",
+  "tool",
+  "skills",
+  "preset",
+  "persona",
+  "prompt"
+],
+"publishConfig": {
+  "access": "public",
+  "registry": "https://registry.npmjs.org"
+},
+  "type": "module",
+  "description": "Manage custom Agent presets from DSH Settings: persona prompt, runtime-context snapshot selection (with an opt-in override for DSH-required contributions), per-preset injected skills and tool scope.",
+  "main": "index.js",
+  "icon": "./icon.svg",
+  "meta": {
+    "title": "自定义预设模式",
+    "description": "新增、编辑、复制与删除自定义 Agent 预设模式，并管理其提示词、运行时上下文、技能与工具。"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./capability": "./capability.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "readme":"README.md",
+  "files": [
+    "index.js",
+    "capability.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

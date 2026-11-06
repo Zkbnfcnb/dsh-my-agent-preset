@@ -1,0 +1,4 @@
+- insert:
+    - id: dsh-agent-preset-studio
+      name: dsh-agent-preset-studio
+      config: {}
