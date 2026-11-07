@@ -1,5 +1,5 @@
 /**
- * dsh-agent-preset-studio — Host half.
+ * dsh-my-agent-preset — Host half.
  *
  * Owns the custom Agent presets the Settings page edits:
  * - persists them to one JSON document under `$DSH_HOME`,
@@ -37,9 +37,9 @@ import { classifySections, resolveOfficialRules } from './capability.js'
 const OFFICIAL_SECTION_DEFAULTS = resolveOfficialRules(undefined)
 
 /** Settings page API prefix; the Client half fetches these exact paths. */
-const API_PREFIX = '/api/dsh-agent-preset-studio'
+const API_PREFIX = '/api/dsh-my-agent-preset'
 /** Package-relative specifier of the preset capability row. */
-const CAPABILITY_PLUGIN = 'dsh-agent-preset-studio/capability'
+const CAPABILITY_PLUGIN = 'dsh-my-agent-preset/capability'
 /** Cordis row declaring one Agent preset. */
 const PRESET_PLUGIN = '@deepseek-ai/dsh-agent-preset'
 /** Cordis row owning the preset registry and its deployment default. */
@@ -63,10 +63,14 @@ function message(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** DSH home: the preset document and the skill hints share it. */
+function dshHome() {
+  return text(process.env.DSH_HOME) || join(homedir(), '.dsh')
+}
+
 /** Default preset document: one file per DSH home, not per profile. */
 function defaultDataFile() {
-  const home = text(process.env.DSH_HOME) || join(homedir(), '.dsh')
-  return join(home, 'agent-preset-studio', 'presets.json')
+  return join(dshHome(), 'my-agent-preset', 'presets.json')
 }
 
 /** Accept only requests that arrived over the loopback interface. */
@@ -109,7 +113,7 @@ function ok(value) {
 
 /** Failure envelope; the Client half surfaces `error.message`. */
 function fail(error) {
-  return { ok: false, error: { code: 'agent-preset-studio', message: message(error) } }
+  return { ok: false, error: { code: 'my-agent-preset', message: message(error) } }
 }
 
 /** Generate a stable, ASCII, collision-free preset id. */
@@ -884,7 +888,7 @@ function skillGroupsFromEntries(ctx, entries) {
     groups.sort((left, right) => left.key.localeCompare(right.key))
     return groups
   } catch (error) {
-    ctx.logger?.warn?.(`[agent-preset-studio] 读取技能目录失败: ${message(error)}`)
+    ctx.logger?.warn?.(`[my-agent-preset] 读取技能目录失败: ${message(error)}`)
     return []
   }
 }
@@ -913,7 +917,7 @@ async function skillGroups(ctx, registry, presetId) {
  * missing skill has an obvious destination.
  */
 function skillRootsHint() {
-  const home = text(process.env.DSH_HOME) || join(homedir(), '.dsh')
+  const home = dshHome()
   const agentsHome = text(process.env.DSH_AGENTS_HOME) || join(homedir(), '.agents')
   return [
     { key: 'project-dsh', path: '<工作区>/.dsh/skills', project: true },
@@ -1144,7 +1148,7 @@ export class PresetStore {
     try {
       parsed = JSON.parse(raw)
     } catch (error) {
-      this.ctx.logger?.warn?.(`[agent-preset-studio] 预设文件无法解析，已忽略: ${message(error)}`)
+      this.ctx.logger?.warn?.(`[my-agent-preset] 预设文件无法解析，已忽略: ${message(error)}`)
       return
     }
     const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.presets) ? parsed.presets : []
@@ -1173,7 +1177,7 @@ export class PresetStore {
       try {
         await dispose()
       } catch (error) {
-        this.ctx.logger?.warn?.(`[agent-preset-studio] 释放旧预设失败: ${message(error)}`)
+        this.ctx.logger?.warn?.(`[my-agent-preset] 释放旧预设失败: ${message(error)}`)
       }
     }
     this.disposers.clear()
@@ -1197,7 +1201,7 @@ export class PresetStore {
         this.disposers.set(preset.id, dispose)
       } catch (error) {
         this.failures.set(preset.id, message(error))
-        this.ctx.logger?.warn?.(`[agent-preset-studio] 注册预设 ${preset.id} 失败: ${message(error)}`)
+        this.ctx.logger?.warn?.(`[my-agent-preset] 注册预设 ${preset.id} 失败: ${message(error)}`)
       }
     }
     // The document changed, so every live Agent's scope must be rebuilt.
@@ -1205,7 +1209,7 @@ export class PresetStore {
     // Pin the mount order for the whole Host run, then tell the deployment
     // the catalogs moved. Both are best-effort: neither may fail a save.
     this.composeBaseline().catch((error) => {
-      this.ctx.logger?.warn?.(`[agent-preset-studio] 预先挂载基准预设失败: ${message(error)}`)
+      this.ctx.logger?.warn?.(`[my-agent-preset] 预先挂载基准预设失败: ${message(error)}`)
     })
     this.notifyCatalogChange()
   }
@@ -1312,7 +1316,7 @@ export class PresetStore {
     } catch (error) {
       const known = parseKnownRestrictable(error)
       if (known === undefined) {
-        this.ctx.logger?.warn?.(`[agent-preset-studio] 工具范围限制失败: ${message(error)}`)
+        this.ctx.logger?.warn?.(`[my-agent-preset] 工具范围限制失败: ${message(error)}`)
         return undefined
       }
       const compatible = names.filter((name) => known.has(name))
@@ -1320,7 +1324,7 @@ export class PresetStore {
       try {
         return scopedTools.restrict(mode === 'allow' ? { allow: compatible } : { deny: compatible })
       } catch (retryError) {
-        this.ctx.logger?.warn?.(`[agent-preset-studio] 工具范围限制重试失败: ${message(retryError)}`)
+        this.ctx.logger?.warn?.(`[my-agent-preset] 工具范围限制重试失败: ${message(retryError)}`)
         return undefined
       }
     }
@@ -1446,7 +1450,7 @@ export class PresetStore {
               if (typeof dispose === 'function') state.contextShadows.push(dispose)
             } catch (error) {
               this.ctx.logger?.warn?.(
-                `[agent-preset-studio] 强制屏蔽必需项「${name}」注册同名覆盖失败: ${message(error)}`,
+                `[my-agent-preset] 强制屏蔽必需项「${name}」注册同名覆盖失败: ${message(error)}`,
               )
             }
           }
@@ -1491,7 +1495,7 @@ export class PresetStore {
               // Fail open, never shut: a broken filter must not leave the model
               // without its runtime context — dropping the workspace or the
               // sandbox policy silently is worse than over-injecting.
-              this.ctx.logger?.warn?.(`[agent-preset-studio] 运行时上下文过滤失败，已放行全部: ${message(error)}`)
+              this.ctx.logger?.warn?.(`[my-agent-preset] 运行时上下文过滤失败，已放行全部: ${message(error)}`)
               return assembly
             }
           },
@@ -1664,7 +1668,7 @@ export class PresetStore {
       this.rememberScopeKey(target, lease?.key)
     } catch (error) {
       this.composedBaselines.delete(key)
-      this.ctx.logger?.warn?.(`[agent-preset-studio] 预先挂载基准预设失败: ${message(error)}`)
+      this.ctx.logger?.warn?.(`[my-agent-preset] 预先挂载基准预设失败: ${message(error)}`)
       return
     } finally {
       await releaseLease(lease)
@@ -1716,7 +1720,7 @@ export class PresetStore {
     for (const dispose of pending) {
       Promise.resolve()
         .then(() => dispose())
-        .catch((error) => this.ctx.logger?.warn?.(`[agent-preset-studio] 释放预设失败: ${message(error)}`))
+        .catch((error) => this.ctx.logger?.warn?.(`[my-agent-preset] 释放预设失败: ${message(error)}`))
     }
   }
 
@@ -1837,7 +1841,7 @@ export class PresetStore {
   /**
    * The official-section rules the CAPABILITY row actually runs with.
    *
-   * The filter is mounted by `dsh-agent-preset-studio/capability`, whose
+   * The filter is mounted by `dsh-my-agent-preset/capability`, whose
    * config lives on the preset row — not on this Host plugin. Reading the row
    * keeps the page's report aligned with what will really be removed when a
    * deployment widens the prefixes; the Host config is only the fallback for
@@ -2380,7 +2384,7 @@ function registerWeb(ctx, store) {
               }
             },
           }),
-        `agent-preset-studio: ${name} route`,
+        `my-agent-preset: ${name} route`,
       )
     }
   })
@@ -2397,17 +2401,17 @@ export function apply(ctx, config) {
     () => () => {
       store.dispose()
     },
-    'agent-preset-studio: store',
+    'my-agent-preset: store',
   )
   ctx.inject(['agentPresets'], (scoped) => {
     scoped.effect(
       () => () => {
         store.unbind()
       },
-      'agent-preset-studio: registry binding',
+      'my-agent-preset: registry binding',
     )
     store.bind(scoped.get('agentPresets')).catch((error) => {
-      ctx.logger?.warn?.(`[agent-preset-studio] 注册自定义预设失败: ${message(error)}`)
+      ctx.logger?.warn?.(`[my-agent-preset] 注册自定义预设失败: ${message(error)}`)
     })
   })
   // Per-Agent scope must be installed from the Host context: Cordis keeps one
@@ -2438,7 +2442,7 @@ export function apply(ctx, config) {
         clearInterval(timer)
       }
     },
-    'agent-preset-studio: agent scope sweep',
+    'my-agent-preset: agent scope sweep',
   )
   // The tool registry moves at runtime — MCP servers publish their tools
   // when a connection opens, plugin HMR re-registers on reload, and every
@@ -2451,7 +2455,7 @@ export function apply(ctx, config) {
       ctx.on('tools/change', () => {
         store.queueScopeRefresh()
       }),
-    'agent-preset-studio: tools change refresh',
+    'my-agent-preset: tools change refresh',
   )
   ctx.inject(['agents'], (scoped) => {
     /** Every Agent this Host can currently see. */
@@ -2472,7 +2476,7 @@ const install = (agent) => {
   store
     .run(() => store.installAgentScope(agent))
     .catch((error) => {
-      ctx.logger?.warn?.(`[agent-preset-studio] 应用 Agent 工具范围失败: ${message(error)}`)
+      ctx.logger?.warn?.(`[my-agent-preset] 应用 Agent 工具范围失败: ${message(error)}`)
     })
     .finally(() => {
       pending.delete(agent)
@@ -2486,7 +2490,7 @@ const uninstall = (agent) => {
   try {
     store.uninstallAgentScope(agent)
   } catch (error) {
-    ctx.logger?.warn?.(`[agent-preset-studio] 卸载 Agent 工具范围失败: ${message(error)}`)
+    ctx.logger?.warn?.(`[my-agent-preset] 卸载 Agent 工具范围失败: ${message(error)}`)
   } finally {
     pendingUninstall.delete(agent)
   }
@@ -2505,7 +2509,7 @@ const sweep = async () => {
 
 scoped.effect(
   () => {
-    sweep().catch(e => ctx.logger?.error?.(`[agent-preset-studio] initial sweep error: ${message(e)}`))
+    sweep().catch(e => ctx.logger?.error?.(`[my-agent-preset] initial sweep error: ${message(e)}`))
     const offCreated = ctx.on('agent/created', (payload) => install(payload?.agent))
     const offDisposed = ctx.on('agent/disposed', (payload) => uninstall(payload?.agent))
     // An Agent joins its preset after it is created, so the selection
@@ -2535,7 +2539,7 @@ scoped.effect(
     // Last resort sweep: covers an event that fired before the preset id
     // resolved, or an Agent the roster did not list yet.
     // 包捕获，防止async sweep异常静默丢失
-    const timer = setInterval(() => sweep().catch(e => ctx.logger?.error?.(`[agent-preset-studio] periodic sweep error: ${message(e)}`)), 4000)
+    const timer = setInterval(() => sweep().catch(e => ctx.logger?.error?.(`[my-agent-preset] periodic sweep error: ${message(e)}`)), 4000)
     timer.unref?.()
     return () => {
       offCreated?.()
@@ -2548,7 +2552,7 @@ scoped.effect(
       }
     }
   },
-  'agent-preset-studio: per-agent scope listeners',
+  'my-agent-preset: per-agent scope listeners',
 )
 
   
@@ -2560,7 +2564,7 @@ scoped.effect(
         await store.reconcile()
       })
       .catch((error) => {
-        ctx.logger?.warn?.(`[agent-preset-studio] 读取预设文件失败: ${message(error)}`)
+        ctx.logger?.warn?.(`[my-agent-preset] 读取预设文件失败: ${message(error)}`)
       })
   // The baseline rows live in loader entries, so wait until the loader service
   // is available instead of reading an empty catalog during startup.

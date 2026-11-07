@@ -277,7 +277,7 @@ export function mountStudio({
     nav,
     fetchStub,
   )
-  if (def?.id !== 'dsh-agent-preset-studio') throw new Error(`unexpected module id: ${def?.id}`)
+  if (def?.id !== 'dsh-my-agent-preset') throw new Error(`unexpected module id: ${def?.id}`)
 
   const exports_ = def.factory((id) => {
     if (id === '@deepseek-ai/dsh-client-ui-primitives') {
@@ -316,7 +316,7 @@ export function mountStudio({
     slots: {
       inject: (_slot, fn) => fn(),
       register: (meta_, component) => {
-        if (meta_?.id === 'agent-preset-studio') StudioSection = component
+        if (meta_?.id === 'my-agent-preset') StudioSection = component
       },
     },
   })

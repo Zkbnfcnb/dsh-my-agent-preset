@@ -1,5 +1,5 @@
 /**
- * dsh-agent-preset-studio — Client half (Web).
+ * dsh-my-agent-preset — Client half (Web).
  *
  * Renders the "自定义预设模式" page in DSH Settings. The page is a management
  * list plus an inline editor over the Host half's loopback JSON API:
@@ -14,7 +14,7 @@
  * imported.
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-agent-preset-studio',
+  id: 'dsh-my-agent-preset',
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
@@ -28,9 +28,9 @@ window.__ModuleLoader__.load({
     const UI = require('@deepseek-ai/dsh-client-ui-primitives')
 
     /** Settings page API prefix served by the Host half. */
-    const API_PREFIX = '/api/dsh-agent-preset-studio'
+    const API_PREFIX = '/api/dsh-my-agent-preset'
     /** Dictionary namespace owned by this plugin. */
-    const LOCALE_NS = 'settings.agentPresetStudio'
+    const LOCALE_NS = 'settings.myAgentPreset'
 
     /** Page styles: host card grid + host field metrics, theme tokens only. */
     const CSS = `.aps-section{max-width:720px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px}
@@ -2364,28 +2364,28 @@ window.__ModuleLoader__.load({
       ctx.effect(
         () => {
           const tag = document.createElement('style')
-          tag.dataset.pluginCss = 'dsh-agent-preset-studio/settings.css'
+          tag.dataset.pluginCss = 'dsh-my-agent-preset/settings.css'
           tag.textContent = CSS
           document.head.appendChild(tag)
           return () => {
             tag.remove()
           }
         },
-        'agent-preset-studio: styles',
+        'my-agent-preset: styles',
       )
       let t = (key) => zh[key] ?? key
       try {
-        ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'agent-preset-studio: dictionaries')
+        ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'my-agent-preset: dictionaries')
         t = ctx.locale.bind(LOCALE_NS)
         T = t
       } catch (err) {
-        ctx.logger?.warn?.(`[agent-preset-studio] 注册文案失败: ${String(err?.message ?? err)}`)
+        ctx.logger?.warn?.(`[my-agent-preset] 注册文案失败: ${String(err?.message ?? err)}`)
       }
       ctx.slots.inject('settings.section', () =>
         ctx.slots.register(
           {
             name: 'settings.section',
-            id: 'agent-preset-studio',
+            id: 'my-agent-preset',
             order: 21,
             label: () => t('nav'),
             locale: LOCALE_NS,

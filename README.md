@@ -1,4 +1,4 @@
-# dsh-agent-preset-studio
+# dsh-my-agent-preset
 
 > 给 DSH 的 Agent 做「预设」：把**人设、提示词、技能、工具、运行时上下文**打包成一套可复用的能力组合。一个任务，只装它需要的东西。
 
@@ -261,15 +261,17 @@ await session_bridge_create({
 将插件目录安装或链接到 DSH 当前 profile 的 `node_modules`，然后重启 DSH。例如本机验证过的布局：
 
 ```bash
-ln -s /path/to/dsh-agent-preset-studio \
-  ~/.dsh/profiles/web/node_modules/dsh-agent-preset-studio
+ln -s /path/to/dsh-my-agent-preset \
+  ~/.dsh/profiles/web/node_modules/dsh-my-agent-preset
 ```
 
-重启后打开 **设置 → 自定义预设模式**。若没有出现，检查 DSH 日志中是否有 `agent-preset-studio` 相关报错。
+重启后打开 **设置 → 自定义预设模式**。若没有出现，检查 DSH 日志中是否有 `my-agent-preset` 相关报错。
 
 ## 数据与兼容
 
-默认数据文件：`$DSH_HOME/agent-preset-studio/presets.json`；未设置 `DSH_HOME` 时落在 `~/.dsh/agent-preset-studio/presets.json`。可用 bundle 行 config 的 `dataFile` 覆盖。
+默认数据文件：`$DSH_HOME/my-agent-preset/presets.json`；未设置 `DSH_HOME` 时落在 `~/.dsh/my-agent-preset/presets.json`。可用 bundle 行 config 的 `dataFile` 覆盖。
+
+改名前的 `$DSH_HOME/agent-preset-studio/presets.json` 不再读取；如需保留旧预设，请手工把文件移动到新路径。
 
 ```json
 {
@@ -329,6 +331,7 @@ node test/verify-context-snapshot.mjs
 node test/verify-context-registry-truth.mjs
 node test/verify-official-rules-ui.mjs
 node test/verify-builtin-skill-gap.mjs
+node test/verify-default-data-path.mjs
 node test/regression-scope-lifecycle.mjs
 ```
 

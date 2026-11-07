@@ -1,4 +1,4 @@
-# dsh-agent-preset-studio
+# dsh-my-agent-preset
 
 在 DSH（DeepSeek Harness）Web 设置页中管理**自定义 Agent 预设模式**：新增、编辑、启用/停用与删除多个预设，并管理每个模式的**提示词、技能（按来源二级菜单）与工具范围**。
 
@@ -217,9 +217,11 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 
 `contexts` 有**三种状态**，语义不同：字段**缺失** = 该预设不管理快照，`assembly.contexts` 原样注入（本功能之前保存的旧预设正是这种状态，升级瞬间行为零变化）；字段是**数组** = 严格白名单，数组里的名字注入、没进数组的名字一律屏蔽；数组**为空** = 只剩必需项注入。`contexts` 里**只写可选项**，`required: true` 的名字从不写入——它们是否注入由 `requiredSuppressed` 单独决定：字段缺失或为空数组 = 高级开关关（官方契约保持，两项照常注入，这是默认）；数组里列出某个必需项名字 = 走上面那套对抗手段强制屏蔽它。两个名单各管一半，互不重复记账。旧版（version 1，含 `builtins` / `mcpServers` 字段）的数据会被自动兼容读取，废弃字段被忽略。文件使用「临时文件 + rename」原子写入。可用 bundle 行 config 的 `dataFile` 覆盖路径。
 
+插件从 `dsh-agent-preset-studio` 改名为 `dsh-my-agent-preset` 后，默认目录同步改为 `$DSH_HOME/my-agent-preset/`。旧目录 `$DSH_HOME/agent-preset-studio/` 不再读取；需要沿用旧预设时，请手工把 `presets.json` 移到新路径。`test/verify-default-data-path.mjs` 固定了新路径读取、旧目录被忽略、显式 `dataFile` 覆盖与损坏文件容错四种行为。
+
 ## 本地 HTTP API
 
-仅接受回环地址，前缀 `/api/dsh-agent-preset-studio`，POST JSON，统一返回 `{ ok: true, value }` 或 `{ ok: false, error: { message } }`。
+仅接受回环地址，前缀 `/api/dsh-my-agent-preset`，POST JSON，统一返回 `{ ok: true, value }` 或 `{ ok: false, error: { message } }`。
 
 | 端点 | 请求体 | 说明 |
 |---|---|---|

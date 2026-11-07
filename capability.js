@@ -1,5 +1,5 @@
 /**
- * dsh-agent-preset-studio — capability row.
+ * dsh-my-agent-preset — capability row.
  *
  * This module is not mounted by the bundle patch. The Host half builds one
  * `PresetDefinition` per custom preset and puts this row inside it, so the
@@ -86,7 +86,7 @@ const OFFICIAL_KEEP_CONFIG = 'officialSectionKeep'
 /** Namespace tokens that make an unknown section LOOK like a DSH row. */
 const OFFICIAL_LOOKALIKE = ['dsh', 'deepseek', 'harness', 'deployment']
 /** Provider name published into the preset's skill layer. */
-const SKILL_PROVIDER = 'dsh-agent-preset-studio'
+const SKILL_PROVIDER = 'dsh-my-agent-preset'
 /**
  * Rank used for injected skills inside the preset's own layer.
  *
@@ -366,7 +366,7 @@ export function apply(ctx, config) {
             text: personaText,
             ...(complete ? { complete: true } : {}),
           }),
-        'agent-preset-studio: persona prefix',
+        'my-agent-preset: persona prefix',
       )
       const suffixRegistered = !complete && suffix !== ''
       if (suffixRegistered) {
@@ -377,7 +377,7 @@ export function apply(ctx, config) {
               order: 0,
               text: suffix,
             }),
-          'agent-preset-studio: persona suffix',
+          'my-agent-preset: persona suffix',
         )
       }
       if (officialOnly) {
@@ -407,7 +407,7 @@ export function apply(ctx, config) {
               },
               { prepend: true },
             ),
-          'agent-preset-studio: official prompt filter',
+          'my-agent-preset: official prompt filter',
         )
       }
     })
@@ -616,7 +616,7 @@ export function apply(ctx, config) {
               },
             }
           }),
-        'agent-preset-studio: injected skills provider',
+        'my-agent-preset: injected skills provider',
       )
     })
   }
