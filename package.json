@@ -1,6 +1,6 @@
 {
   "name": "dsh-my-agent-preset",
-  "version": "2.7.1",
+  "version": "2.7.2",
   "author": {
   "name": "zkbnfcnb",
   "email": "2104587592@qq.com"
@@ -20,6 +20,7 @@
   "access": "public",
   "registry": "https://registry.npmjs.org"
 },
+"repository": "github:Zkbnfcnb/dsh-my-agent-preset",
   "type": "module",
   "description": "Manage custom Agent presets from DSH Settings: persona prompt, runtime-context snapshot selection (with an opt-in override for DSH-required contributions), per-preset injected skills and tool scope.",
   "main": "index.js",
