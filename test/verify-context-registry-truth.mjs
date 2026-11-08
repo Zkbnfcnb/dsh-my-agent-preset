@@ -17,7 +17,7 @@
  *   3. a row the table calls required but the registry does not is closable —
  *      the live answer wins in that direction too;
  *   4. a live-only row reaches the page without any Agent having assembled;
- *   5. the `official-only` rule set is extensible and reports section names that
+ *   5. the `custom-official` rule set is extensible and reports section names that
  *      look official but sit outside it;
  *   6. with no readable registry everything falls back to the shipped table.
  *
@@ -31,7 +31,7 @@ import { Context } from 'file:///root/node-v24.13.0-linux-arm64/lib/node_modules
 import { createScope } from 'file:///root/node-v24.13.0-linux-arm64/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-scope/lib/index.js'
 import { SystemPrompt } from 'file:///root/node-v24.13.0-linux-arm64/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-system-prompt/lib/index.js'
 import { PresetStore, normalizePreset, resolveContextSelection, toDefinition } from '../index.js'
-import { classifySections, resolveOfficialRules } from '../capability.js'
+import { classifySections, resolveSectionRules } from '../capability.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const turn = () => new Promise((resolve) => setImmediate(resolve))
@@ -180,11 +180,11 @@ console.log('# 无法读取时的回退')
     // built-in namespaces", so the reader must be told what those ARE.
     const listed = await bundle.store.list()
     assert(
-      listed.meta.officialSectionDefaults.prefixes.includes('harness:'),
+      listed.meta.sectionRuleDefaults.prefixes.includes('harness:'),
       'the shipped namespace list is reported to the page',
     )
     assert(
-      listed.meta.officialSectionDefaults.names.includes('mcp-resource-servers'),
+      listed.meta.sectionRuleDefaults.names.includes('mcp-resource-servers'),
       'and the shipped exact-name list',
     )
   } finally {
@@ -192,25 +192,54 @@ console.log('# 无法读取时的回退')
   }
 }
 
-console.log('# official-only 规则可扩展且能报出疑似漏网段')
+console.log('# 自定义屏蔽规则可扩展并分类实存段（普通前缀匹配）')
 {
   const names = ['deployment:persona-prefix', 'harness:identity', 'dsh:new-surface', 'mcp:github', 'vendor:thing']
   const base = classifySections(names)
-  assert.deepEqual(base.official.sort(), ['deployment:persona-prefix', 'harness:identity'], 'known namespaces are official')
-  assert.deepEqual(base.thirdParty.sort(), ['dsh:new-surface', 'mcp:github', 'vendor:thing'], 'the rest survives')
-  assert.deepEqual(base.suspect, ['dsh:new-surface'], 'a reserved-looking namespace is reported as a possible leak')
+  assert.deepEqual(base.blocked.sort(), ['deployment:persona-prefix', 'harness:identity'], 'built-in prefixes are official')
+  assert.deepEqual(
+    base.kept.sort(),
+    ['dsh:new-surface', 'mcp:github', 'vendor:thing'],
+    'everything else is third-party, with no "looks official" guess',
+  )
 
-  const widened = classifySections(names, { officialSectionPrefixes: ['vendor'] })
-  assert.deepEqual(widened.official.sort(), ['deployment:persona-prefix', 'harness:identity', 'vendor:thing'], 'config widens the rule')
-  assert(!widened.thirdParty.includes('vendor:thing'), 'and moves the row out of third-party')
+  const widened = classifySections(names, { sectionRulePrefixes: ['vendor'] })
+  assert.deepEqual(widened.blocked.sort(), ['deployment:persona-prefix', 'harness:identity', 'vendor:thing'], 'config widens the rule')
+  assert(!widened.kept.includes('vendor:thing'), 'and moves the row out of third-party')
 
-  const exempt = classifySections(names, { officialSectionKeep: ['deployment:persona-prefix'] })
-  assert.deepEqual(exempt.kept, ['deployment:persona-prefix'], 'an exemption outranks a reserved namespace')
+  const keptRule = classifySections(names, { sectionRuleKeep: ['deployment:persona-prefix'] })
+  assert(keptRule.kept.includes('deployment:persona-prefix'), 'a keep-list hit stays in the kept bucket')
+  assert(!keptRule.blocked.includes('deployment:persona-prefix'), 'an exemption outranks a built-in prefix')
 
-  const rules = resolveOfficialRules({ officialSectionPrefixes: ['harness'] })
-  assert(rules.prefixes.includes('harness:'), 'a bare prefix is normalised to a namespace')
-  assert.equal(new Set(rules.prefixes).size, rules.prefixes.length, 'a repeated namespace is merged, not duplicated')
-  assert(rules.prefixes.includes('deployment:'), 'the default namespaces remain in place')
+  const rules = resolveSectionRules({ sectionRulePrefixes: ['harness'] })
+  assert(rules.prefixes.includes('harness'), 'a prefix is kept verbatim — no trailing colon is appended')
+  assert.equal(new Set(rules.prefixes).size, rules.prefixes.length, 'a repeated prefix is merged, not duplicated')
+  assert(rules.prefixes.includes('deployment:'), 'the built-in prefixes remain in place')
+
+  // A plain prefix matches anything that STARTS with it, at any depth: `a:b`
+  // matches `a:b:c`, so the operator never has to name a whole namespace.
+  const plain = resolveSectionRules({ sectionRulePrefixes: ['a:b'] })
+  assert(plain.prefixes.includes('a:b'), 'a multi-segment plain prefix is accepted as-is')
+  const prefixMove = classifySections(['a:b:c', 'a:bc', 'a:c', 'b:a:b'], { sectionRulePrefixes: ['a:b'] })
+  assert.deepEqual(prefixMove.blocked.sort(), ['a:b:c', 'a:bc'], 'a plain prefix matches every section starting with it')
+  assert.deepEqual(prefixMove.kept, ['a:c', 'b:a:b'], 'and only those')
+
+  // `dsh-context:*` stays third-party until a prefix covers it. There is no
+  // "suspected leak" bucket: the page simply lists both sides with their names.
+  const sibling = classifySections(
+    ['dsh-context:prompt-prefix', 'dsh-context:persona-suffix', 'harness:identity'],
+    { sectionRulePrefixes: ['dsh-context:prompt-prefix'] },
+  )
+  assert.deepEqual(
+    sibling.blocked.sort(),
+    ['dsh-context:prompt-prefix', 'harness:identity'],
+    'the exact prefix blocks only its own section',
+  )
+  assert.deepEqual(
+    sibling.kept,
+    ['dsh-context:persona-suffix'],
+    'the sibling stays third-party instead of being reported as a suspected leak',
+  )
 }
 
 console.log('# 预设自身承载官方段规则')
@@ -218,24 +247,24 @@ console.log('# 预设自身承载官方段规则')
   const normalized = normalizePreset({
     id: 'p9',
     name: 'P9',
-    officialSectionPrefixes: [' api ', 'api', ''],
-    officialSectionNames: ['mcp-resource-servers-x'],
-    officialSectionKeep: [],
+    sectionRulePrefixes: [' api ', 'api', ''],
+    sectionRuleNames: ['mcp-resource-servers-x'],
+    sectionRuleKeep: [],
   })
-  assert.deepEqual(normalized.officialSectionPrefixes, ['api'], 'prefixes are trimmed and deduped')
-  assert.deepEqual(normalized.officialSectionNames, ['mcp-resource-servers-x'], 'exact names are kept')
-  assert.equal(normalized.officialSectionKeep, undefined, 'an empty list is not a decision')
+  assert.deepEqual(normalized.sectionRulePrefixes, ['api'], 'prefixes are trimmed and deduped')
+  assert.deepEqual(normalized.sectionRuleNames, ['mcp-resource-servers-x'], 'exact names are kept')
+  assert.equal(normalized.sectionRuleKeep, undefined, 'an empty list is not a decision')
   // The capability row must receive them, or the filter would never see them.
   const definition = toDefinition({ ...normalized, skills: [], tools: { mode: 'all', names: [] } }, [])
   const capability = definition.plugins.find((row) => row.id === 'studio-capability')
-  assert.deepEqual(capability.config.officialSectionPrefixes, ['api'], 'the rule travels into the capability row')
-  assert.deepEqual(capability.config.officialSectionKeep, undefined, 'and an absent rule stays absent')
+  assert.deepEqual(capability.config.sectionRulePrefixes, ['api'], 'the rule travels into the capability row')
+  assert.deepEqual(capability.config.sectionRuleKeep, undefined, 'and an absent rule stays absent')
   // A preset that never mentions the rules carries none of them.
   const plain = toDefinition(
     normalizePreset({ id: 'p10', name: 'P10', skills: [], tools: { mode: 'all', names: [] } }),
     [],
   )
-  assert.equal(plain.plugins.find((row) => row.id === 'studio-capability').config.officialSectionPrefixes, undefined,
+  assert.equal(plain.plugins.find((row) => row.id === 'studio-capability').config.sectionRulePrefixes, undefined,
     'a legacy preset keeps running on the built-in namespaces')
 }
 
@@ -249,9 +278,9 @@ console.log('# 数据文件里的规则：读到、保存不丢、复制继承')
       {
         id: 'p1',
         name: 'P1',
-        instructionMode: 'official-only',
-        officialSectionPrefixes: ['api'],
-        officialSectionKeep: ['tool:mine'],
+        instructionMode: 'custom-official',
+        sectionRulePrefixes: ['api'],
+        sectionRuleKeep: ['tool:mine'],
         contexts: ['sandbox:policy'],
         tools: { mode: 'all', names: [] },
         skills: [],
@@ -263,10 +292,10 @@ console.log('# 数据文件里的规则：读到、保存不丢、复制继承')
   const store = new PresetStore(root, { dataFile })
   try {
     await store.load()
-    assert.deepEqual(store.presets[0].officialSectionPrefixes, ['api'], 'the rule is read from the document')
-    assert.deepEqual(store.presets[0].officialSectionKeep, ['tool:mine'], 'every stored rule field survives the load')
+    assert.deepEqual(store.presets[0].sectionRulePrefixes, ['api'], 'the rule is read from the document')
+    assert.deepEqual(store.presets[0].sectionRuleKeep, ['tool:mine'], 'every stored rule field survives the load')
 
-    // A page edit (the page has no rule control) must carry the rules forward.
+    // A page edit that does NOT submit a rule field must carry it forward:
     await store.save({
       id: 'p1',
       name: 'P1 renamed',
@@ -274,29 +303,123 @@ console.log('# 数据文件里的规则：读到、保存不丢、复制继承')
       skills: [],
       contexts: ['sandbox:policy'],
     })
-    assert.deepEqual(store.presets[0].officialSectionPrefixes, ['api'], 'a page save carries the stored rule')
-    assert.deepEqual(store.presets[0].officialSectionKeep, ['tool:mine'], 'and leaves the other fields alone')
+    assert.deepEqual(store.presets[0].sectionRulePrefixes, ['api'], 'a page save carries the stored rule')
+    assert.deepEqual(store.presets[0].sectionRuleKeep, ['tool:mine'], 'and leaves the other fields alone')
 
     // A duplicate of that preset inherits them too.
     const copy = await store.save({ name: 'P1 copy', insertAfter: 'p1', tools: { mode: 'all', names: [] }, skills: [] })
     const copied = store.presets.find((preset) => preset.id === copy.id)
-    assert.deepEqual(copied?.officialSectionPrefixes, ['api'], 'a copy inherits the rule')
+    assert.deepEqual(copied?.sectionRulePrefixes, ['api'], 'a copy inherits the rule')
 
     // Hand-editing the document and reloading is how the field reaches the Host.
-    seeded.presets[0].officialSectionPrefixes = ['api', 'skill']
+    seeded.presets[0].sectionRulePrefixes = ['api', 'skill']
     await writeFile(dataFile, JSON.stringify(seeded))
     await store.load()
-    assert.deepEqual(store.presets[0].officialSectionPrefixes, ['api', 'skill'], 'a reload reads the edited document')
+    assert.deepEqual(store.presets[0].sectionRulePrefixes, ['api', 'skill'], 'a reload reads the edited document')
     // ...and the capability row the preset composes carries it.
     const definition = toDefinition(store.presets[0], [])
     assert.deepEqual(
-      definition.plugins.find((row) => row.id === 'studio-capability').config.officialSectionPrefixes,
+      definition.plugins.find((row) => row.id === 'studio-capability').config.sectionRulePrefixes,
       ['api', 'skill'],
       'the reloaded rule reaches the capability row',
     )
+
+    // The page now has chip fields. Emptying one sends `[]`, and that explicit
+    // empty list must CLEAR the stored override — not be carried forward from
+    // the previous save like an omitted field.
+    await store.save({
+      id: 'p1',
+      name: 'P1',
+      sectionRulePrefixes: [],
+      tools: { mode: 'all', names: [] },
+      skills: [],
+      contexts: ['sandbox:policy'],
+    })
+    assert.equal(store.presets[0].sectionRulePrefixes, undefined, 'an explicit empty list clears the override')
   } finally {
     store.dispose()
     await rm(dir, { recursive: true, force: true })
+  }
+}
+
+console.log('# 自检按草稿规则计算：空数组回落内置，而不是沿用存储值')
+{
+  const bundle = await boot()
+  try {
+    const store = bundle.store
+    // Seed the live section view: a section in a DSH-looking namespace that no
+    // built-in prefix covers. It is plain third-party content — the report has
+    // no "suspected leak" bucket. `boot()` already pinned the scope key, so
+    // `inspect` reuses this cached view instead of re-reading the registry.
+    store.promptViews.set('p1', {
+      contexts: new Map(),
+      sections: new Set(['harness:identity', 'dsh-context:prompt-prefix', 'vendor:thing']),
+    })
+    // The stored preset carries an override; the editor's draft replaces it.
+    store.presets[0] = { ...store.presets[0], sectionRulePrefixes: ['api'] }
+    // `inspect` only needs the standing-scope lease from the registry.
+    store.registry = { acquireScope: async () => ({ key: bundle.presetKey }) }
+
+    const before = await store.inspectPreset('p1', {
+      sectionRulePrefixes: [],
+      sectionRuleNames: [],
+      sectionRuleKeep: [],
+    })
+    assert(before.sectionFilter?.available === true, 'the live section list is readable')
+    assert(
+      before.sectionFilter?.keptList?.includes('dsh-context:prompt-prefix'),
+      'an uncovered namespace is plain third-party content, not a suspected leak',
+    )
+
+    // A full section name in the prefix field is a valid PLAIN prefix for that
+    // section (and anything extending it), so the draft must move it.
+    const widened = await store.inspectPreset('p1', {
+      sectionRulePrefixes: ['dsh-context:prompt-prefix'],
+      sectionRuleNames: [],
+      sectionRuleKeep: [],
+    })
+    assert.equal(
+      widened.sectionFilter?.rules?.prefixes,
+      10,
+      'the draft prefixes replace the stored list (9 built-ins + the full section prefix)',
+    )
+    assert(
+      widened.sectionFilter?.blockedList?.includes('dsh-context:prompt-prefix'),
+      'the plain prefix now blocks that section',
+    )
+    assert(
+      !widened.sectionFilter?.keptList?.includes('dsh-context:prompt-prefix'),
+      'and it leaves the third-party list — the self-check follows the draft',
+    )
+
+    const cleared = await store.inspectPreset('p1', {
+      sectionRulePrefixes: [],
+      sectionRuleNames: [],
+      sectionRuleKeep: [],
+    })
+    assert.equal(
+      cleared.sectionFilter?.rules?.prefixes,
+      9,
+      'an emptied chip field falls back to the built-ins instead of the stored api',
+    )
+    assert(
+      cleared.sectionFilter?.keptList?.includes('dsh-context:prompt-prefix'),
+      'clearing the chip moves the section back to third-party',
+    )
+    // The panel lists the concrete names behind the counts, so the answer must
+    // carry them — a count alone cannot show which section moved.
+    assert.equal(
+      widened.sectionFilter?.blocked,
+      widened.sectionFilter?.blockedList?.length,
+      'the blocked count matches its list',
+    )
+    assert.equal(
+      widened.sectionFilter?.kept,
+      widened.sectionFilter?.keptList?.length,
+      'the kept count matches its list',
+    )
+  } finally {
+    await bundle.dispose()
   }
 }
 

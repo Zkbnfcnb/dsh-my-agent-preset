@@ -1,5 +1,5 @@
 /**
- * Regression: `official-only` prompt injection removes only DSH's own system
+ * Regression: `custom-official` prompt injection removes only DSH's own system
  * prompt sections and keeps contributions injected by third-party plugins and
  * external MCP servers.
  *
@@ -83,7 +83,7 @@ async function build(config, agentSections = []) {
     apply(ctx, {
       presetId: 'p1',
       instructions: AUTHORED,
-      instructionMode: 'official-only',
+      instructionMode: 'custom-official',
       includeWorkspace: true,
       skills: [],
       tools: { mode: 'all', names: [] },
@@ -163,5 +163,5 @@ const sectionOf = (assembly, name) => assembly.sections.find((section) => sectio
   assert(assembly.sections[0].name === PERSONA_SECTION, 'complete keeps only the preset persona')
 }
 
-console.log('\nAll official-only assertions passed')
+console.log('\nAll custom-official assertions passed')
 process.exit(0)

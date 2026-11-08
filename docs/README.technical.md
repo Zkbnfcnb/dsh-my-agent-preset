@@ -17,13 +17,13 @@
 - **多个预设**：卡片网格列表，显示名称、描述、启用/异常状态、提示词、技能数、工具模式与稳定 id。
 - **新增 / 编辑 / 删除 / 启停**：删除为两段式内联确认；停用后立即从注册表移除。
 - **复制预设**：每张卡片底栏在「停用/启用」之后、「删除」之前常驻「复制」按钮（`aps-iconButton`，与相邻按钮同款；不论该预设启用还是停用都提供）。点击 = **完全副本**：提示词、注入方式、附带工作区、快照勾选（含高级强制屏蔽名单）、技能、工具名单原样带过，**启用状态跟随源**（源停用 → 副本也停用）；`id` 留空交由 Host 生成全新的 `custom-xxxxxxxx`，与源无任何关联；名字 = `源名（复制 N）`，**N 从 1 起**，逐个试到无人占用（含停用预设的名字一律算占用；副本的副本直接叠加成 `XX（复制 1）（复制 1）`；不限长、不截断）。副本**紧接源预设之后**入列：Client 组装载荷调现有 `save`，载荷带 `insertAfter` = 源 id，Host 据此插入并把**整列 `order` 重写为文档下标**（一次 persist、一次 reconcile），于是本页卡片顺序与「新建会话」预设列表（注册表按 `order` 排序）完全一致。复制后**不跳转编辑器**，反馈复用页面顶部 `aps-notice` 单行提示「已复制为 ××（复制 1）」，失败走 `aps-error` 行。
-- **运行时上下文（快照）逐项勾选**：编辑器在「提示词」与「技能」之间新增独立分组，逐项控制每轮注入的 `Current runtime context. This snapshot supersedes earlier runtime-context snapshots.` 那段。它是 `assembly.contexts`——与 `sections` **独立的字段**，所以「完全替换」和「只屏蔽官方」都不曾动过它（那两者只过滤 sections），此前快照在任何注入方式下都全量注入。清单是**白名单**（同技能区语义，不做三模式、不做过滤框）：勾上 = 注入，未勾 = 屏蔽；带「全选 / 取消全选 + 已选计数」（`aps-linkButton`，只作用于可选项）。目录来自 Host 的 `CONTEXT_CATALOG`（对齐官方 `systemPrompt.context()` 的全部注册点）：`working-directory:current`、`sandbox:policy`、`approval:policy`、`subagent:delegation`、`team:identity`、`harness:source`、`app:web-surface`；此外 Host 在每次组装时**观测**该预设 Agent 实际携带的 context 名（内存观测表，对齐 per-Agent 工具观测表），于是第三方插件注册的项与按工具名动态生成的 `tool:<name>:depth` 也能进清单、标「第三方」。每行 = 中文标签 + 灰色等宽技术名 + 一句说明；排序为已勾选靠前、其余按官方 `CONTEXT_ORDERS`（也就是模型看到的顺序），观测项殿后。排序基准是**打开编辑器时的勾选集合**：编辑途中勾选/取消不会让行跳动，保存后重进才按新的勾选重排。
+- **运行时上下文（快照）逐项勾选**：编辑器在「提示词」与「技能」之间新增独立分组，逐项控制每轮注入的 `Current runtime context. This snapshot supersedes earlier runtime-context snapshots.` 那段。它是 `assembly.contexts`——与 `sections` **独立的字段**，所以「完全替换」和「自定义屏蔽（默认官方）」都不曾动过它（那两者只过滤 sections），此前快照在任何注入方式下都全量注入。清单是**白名单**（同技能区语义，不做三模式、不做过滤框）：勾上 = 注入，未勾 = 屏蔽；带「全选 / 取消全选 + 已选计数」（`aps-linkButton`，只作用于可选项）。目录来自 Host 的 `CONTEXT_CATALOG`（对齐官方 `systemPrompt.context()` 的全部注册点）：`working-directory:current`、`sandbox:policy`、`approval:policy`、`subagent:delegation`、`team:identity`、`harness:source`、`app:web-surface`；此外 Host 在每次组装时**观测**该预设 Agent 实际携带的 context 名（内存观测表，对齐 per-Agent 工具观测表），于是第三方插件注册的项与按工具名动态生成的 `tool:<name>:depth` 也能进清单、标「第三方」。每行 = 中文标签 + 灰色等宽技术名 + 一句说明；排序为已勾选靠前、其余按官方 `CONTEXT_ORDERS`（也就是模型看到的顺序），观测项殿后。排序基准是**打开编辑器时的勾选集合**：编辑途中勾选/取消不会让行跳动，保存后重进才按新的勾选重排。
 - **必需项的「高级 · 强制屏蔽」（默认关闭）**：DSH 把 `working-directory:current` 与 `team:identity` 标为 `required: true` 并在**三层**强制注入——`assemble()` 的 required 通道、agent-loop 每步调用的 `refreshContext()`、以及 `dsh-working-directory` 自己那个 `prepend` 修复监听器（发现该项不见了就 `unshift` 补回，见其 `lib/index.js:48-61`）。普通白名单穿透不了，所以这两行的**主复选框是只读呈现**（勾选 = 正在注入，`disabled` = 这个开关管不到它），行下另挂一个**默认不勾**的「高级 · 强制屏蔽这一项」。勾上它，Host 用两个对抗手段真正关掉：① 在**该 Agent 自己的作用域**注册**同名但不带 `required`** 的 context——scoped 同名项在 merge 中遮蔽全局项，`refreshContext()` 因此不再把它当 required 补回；② 把本插件的组装过滤器注册成 `prepend`，让删除落在官方修复监听器**之外**。两者叠加经实测有效（见「验证状态」）。之所以做成默认关闭的高级项：它依赖实现细节而非公开契约，**DSH 升级可能让它悄悄失效且不报错**；且屏蔽「当前工作区」会让模型失去位置感、可能猜错路径——勾选后页面就地显示这段警告。这个勾选框只在当前 Host 声明支持时出现（`meta.capabilities` 含 `requiredSuppression`）：Client 可以热更新到一个尚未重启的旧 Host 上，而旧 Host 会静默丢弃该字段——与其给一个「勾了没反应」的开关，不如让它不出现，并把文档里已存的屏蔽如实读成「此 Host 不支持强制屏蔽（该项仍会注入）」。取消勾选是恢复官方默认，无需确认。`contexts` 数组里**永远不会**出现必需项名字：它是否注入只由这个高级名单决定。
 - **导出预设列表**：列表页头部「新建预设模式」**左侧的次要按钮**，把当前预设清单按 `[{ "id", "name", "description" }]` 的 JSON 数组写入剪贴板（`JSON.stringify(…, null, 2)`，带缩进便于直接粘进配置）。按列表顺序导出、**含停用的预设**、只带这三个字段（提示词/技能/工具不外泄）。剪贴板优先 `navigator.clipboard.writeText`，非安全上下文（http + 非 localhost）回落到临时 `textarea` + `document.execCommand('copy')`，用完即删。空列表不写并提示「还没有可导出的预设」；失败显示「复制失败：原因」，成功显示「已复制 N 个预设…」——复用页面既有的 `aps-notice` / `aps-error` 提示行与 `aps-btn` 次要按钮样式（不加新配色、不引新组件），加载中禁用。
-- **提示词**：写入该模式的系统提示词，注入方式三选一：**追加**（只用这段文字替换人设前缀，保留 DSH 其它系统提示词）、**完全替换**（仅用这段文字，移除所有其它提示词）、**只屏蔽官方**（只用这段文字作为人设，只移除 DSH 官方系统提示词，保留第三方插件与外部 MCP 注入的提示词）。三种方式下都可勾选「附带工作区」（默认开启）：在提示词末尾自动追加一行 `当前任务工作区：<会话 cwd>`，cwd 来自 `context.agent.session.header.cwd`（即 agent-loop 注册的 `cwd` 提示变量），每次组装实时读取；关闭或留空则不追加。注意「只屏蔽官方」下提示词留空 = 不注入人设（但工作区行仍可单独出现）。
+- **提示词**：写入该模式的系统提示词，注入方式三选一：**追加**（只用这段文字替换人设前缀，保留 DSH 其它系统提示词）、**完全替换**（仅用这段文字，移除所有其它提示词）、**自定义屏蔽（默认官方）**（只用这段文字作为人设，按下方三栏段规则屏蔽提示词：默认屏蔽 DSH 官方段，可补充屏蔽前缀或完整段名，也可点名保留；第三方插件与外部 MCP 注入的提示词默认保留）。三种方式下都可勾选「附带工作区」（默认开启）：在提示词末尾自动追加一行 `当前任务工作区：<会话 cwd>`，cwd 来自 `context.agent.session.header.cwd`（即 agent-loop 注册的 `cwd` 提示变量），每次组装实时读取；关闭或留空则不追加。注意「自定义屏蔽（默认官方）」下提示词留空 = 不注入人设（但工作区行仍可单独出现）。
 - **技能（按来源二级菜单）**：目录来自 `ctx.skills.list()`，按 `source` 分组（如 `agent-trae`、`agent-opencode`、`agent-agents`），每个来源一个折叠菜单，菜单头显示 `已选/总数`，含「全选此来源 / 清空此来源」。勾选即注入，未勾选的技能在该预设内调用会被拒绝。**组内排序**：打开编辑器时已勾选的技能排在最前，其余按首字母（`localeCompare`）排序；勾选途中不重排，只有过滤词变化或保存后重进才按新选择重排。菜单上方带**过滤搜索框**：按技能名称或描述实时过滤（不区分大小写），有匹配的来源菜单**自动展开**、空组隐藏，清空过滤词恢复手动管理的展开状态；过滤时菜单头计数与「全选/清空此来源」只作用于**可见（匹配）技能**——所见即所选。搜索框是纯视图状态，不写入草稿、不触发自检。
 - **工具范围**：`全部 / 仅白名单 / 排除名单` 三选一。名单对**该预设的全部工具生效**——内置工具（`read`/`bash`/`glob`…）与全局工具一并收窄，被名单拒绝的工具其**调用也会被拒绝**。**清单排序**：打开编辑器时已勾选的工具排在最前，其余按首字母排序；勾选途中不重排，只有过滤词变化或保存后重进才按新选择重排。名单带**过滤搜索框**：按工具名称或描述实时过滤（不区分大小写），显示匹配计数；切回「全部」时自动清空过滤词。
-- **运行时自检**：读取该预设继承的完整工具面（standing scope ∪ per-Agent 观测并集）后**套用本页配置**，给出与配置一一对应的结果：可用工具、被名单拒绝的工具、启用的技能、已不在目录中的技能、**保留 / 已屏蔽的快照上下文**（两个名单 + 计数；预设未管理快照时显示「该预设未管理快照（全部注入）」，Host 应答不含该字段时整块不显示，绝不谎报 0）。**自动加载**：进入编辑器立即读取；工具名单、工具模式、技能勾选**或快照勾选**每变动一次，350ms 防抖后自动重读，无需手动点击（「重新读取」按钮保留作强制刷新）。自检把编辑器**当前未保存的配置**作为 dry-run 覆盖传给 Host（`inspect` 端点的 `config` 参数），因此结果**实时跟随编辑内容**、标注「预览：按当前编辑内容计算，保存后才生效」；**保存预设才真正改变运行时**。Host 忽略 `config` 参数（未重启加载新 Host 代码）时，client 用 `previewSelection` **本地重算**：旧 Host 返回的 tools/blockedTools 恰好划分了继承面，据此重建 surface 并套用草稿选择——任何 Host 版本下面板都同步展示编辑效果，仅「已不在目录中的技能」因目录在 Host 侧而按已保存配置窄化显示。并发请求按序号丢弃过期响应。
+- **运行时自检**：读取该预设继承的完整工具面（standing scope ∪ per-Agent 观测并集）后**套用本页配置**，给出与配置一一对应的结果：可用工具、被名单拒绝的工具、启用的技能、已不在目录中的技能、**保留 / 已屏蔽的快照上下文**（两个名单 + 计数；预设未管理快照时显示「该预设未管理快照（全部注入）」，Host 应答不含该字段时整块不显示，绝不谎报 0）。**自动加载**：进入编辑器立即读取；工具名单、工具模式、技能勾选**或快照勾选**每变动一次，350ms 防抖后自动重读，无需手动点击（「重新读取」按钮保留作强制刷新）。自检把编辑器**当前未保存的配置**作为 dry-run 覆盖传给 Host（`inspect` 端点的 `config` 参数），因此结果**实时跟随编辑内容**、标注「预览：按当前编辑内容计算，保存后才生效」；**保存预设才真正改变运行时**。Host 忽略 `config` 参数（未重启加载新 Host 代码）时，client 用 `previewSelection` **本地重算**：旧 Host 返回的 tools/blockedTools 恰好划分了继承面，据此重建 surface 并套用草稿选择——任何 Host 版本下面板都同步展示编辑效果，仅「已不在目录中的技能」因目录在 Host 侧而按已保存配置窄化显示。并发请求按序号丢弃过期响应。**段规则分区**：`custom-official` 模式下，自检面板同时展示**合并后**的规则摘要（前缀 / 精确段名 / 保留规则计数）、屏蔽段与保留段的**计数及具体段名名单**（与工具/上下文同一套可滚动列表），并注明规则按「注入方式」下方三栏的当前标签计算——标签每增删一次，这部分随 350ms 防抖重读一起更新；`append` / `complete` 模式不过滤 section，因此不显示该分区；Host 未返回 `sectionFilter` 时整块不显示，`available: false` 时只显示规则计数并说明 section 列表不可读，绝不谎报 0。
 
 ## 技能如何生效
 
@@ -71,9 +71,9 @@ provider 的实现对齐 skills-manager 的三个机制：
 
 **技能与工具名单相互独立。** 没有这条规则时，`allow: ["tool_list"]` 这类窄名单会连 `skill` 工具一起拒掉，于是勾选的技能既加载不了、技能目录也不会载入。因此只要预设勾选了任何技能，`toDefinition` 就把 `skill` 并入 allow 名单（`inspect` 用同一规则复算，保证自检与实际一致），`capability` 的工具 guard 也对 `skill` 放行。
 
-### 只屏蔽官方：保留第三方提示词
+### 自定义屏蔽（默认官方）：保留第三方提示词
 
-`official-only` 模式与「完全替换」的 `complete: true` 不同：它**不使用 complete 核弹**，而是在预设 scope 注册一个 `system-prompt/assemble` waterfall 监听器（`prepend: true`，先调用 `next()` 让所有下游贡献完成，再过滤最终结果），只从 `assembly.sections` 中移除 DSH 自己拥有的 section，`tools` / `contexts` / `variables` 一概不动。
+`custom-official` 模式与「完全替换」的 `complete: true` 不同：它**不使用 complete 核弹**，而是在预设 scope 注册一个 `system-prompt/assemble` waterfall 监听器（`prepend: true`，先调用 `next()` 让所有下游贡献完成，再过滤最终结果），只从 `assembly.sections` 中移除 DSH 自己拥有的 section，`tools` / `contexts` / `variables` 一概不动。
 
 官方 section 的判定按 DSH 保留的命名空间（见 `capability.js` 的 `OFFICIAL_SECTION_PREFIXES`）：
 
@@ -81,19 +81,19 @@ provider 的实现对齐 skills-manager 的三个机制：
 |---|---|
 | `deployment:*`（含部署人设后缀）、`harness:*`、`plan:*`、`team:*`、`tool:*`、`tools:*`、`context:*`、`ui:*`、`app:*`、`mcp-resource-servers` | 预设自己的 `deployment:persona-prefix`；其它插件使用的自定义 section 名；`mcp:<server>`（外部 MCP 服务器提供的指令，不是 DSH 官方文案） |
 
-因此第三方插件只要用自己命名的 section（例如 `my-plugin:rules`）注入提示词，就会在「只屏蔽官方」下继续生效。官方工具 schema 仍在，只是 `tool:*` guidance 段落被移除；这满足“只动提示词注入、不动工具和技能”的边界。判定按**命名空间**进行：第三方若复用 `tool:` / `tools:` / `context:` 等官方保留前缀，会被一并视为官方；想保留就用自己的命名空间。
+因此第三方插件只要用自己命名的 section（例如 `my-plugin:rules`）注入提示词，就会在「自定义屏蔽（默认官方）」下继续生效。官方工具 schema 仍在，只是 `tool:*` guidance 段落被移除；这满足“只动提示词注入、不动工具和技能”的边界。判定按**普通字符串前缀**进行（内置前缀仍是带冒号的命名空间形式，页面补充项可写任意层级）：第三方若复用 `tool:` / `tools:` / `context:` 等官方保留前缀，会被一并视为官方；想保留就用不在规则内自己的前缀。
 
 **这张表是构建时抄下来的，不随 DSH 升级自动更新**——提示词注册表不记录 section 的归属（没有任何运行时 API 能回答“这个名字是不是 DSH 注册的”），所以“正向按来源判定”在当前 API 下做不到。可用的两条替代手段都写进了实现：
 
 | 能力 | 用法 | 解决什么 |
 |---|---|---|
-| 规则可扩展（页面） | 编辑器「注入方式」下方三栏，**只在选「只屏蔽官方」时出现**：**补充屏蔽提示词命名空间（前缀）** / **补充屏蔽提示词命名段（完整名称）** / **保留（不屏蔽）提示词命名段（完整名称）**；每栏下面还有一行**填写案例**（`aps-example`），因为"要填好几个时怎么写"是规则句回答不了的问题。值为空或字段缺失时输入框**保持为空**（不预填），不空则显示存储值——内置默认值写在框下的说明行里（来自 `meta.officialSectionDefaults`），避免把“没编辑过”显示成“编辑过”；清空某一栏 = 回到内置默认（保存时写 `[]`，Host 视为“无覆盖”，不会继承上一次的值）。逗号（含全角）、换行都能分隔，保存前 trim + 去重。**合并是有方向的：内置项始终参与，页面填的只是追加**——把某个内置命名空间从框里删掉不会让它失效，页面会在框下就地提示“这些内置项仍生效”（框为空时不算删除，等同于“用内置默认”）。第三栏（保留例外）是**精确段名**的豁免名单，没有内置默认；它不参与并集，而是在判定时优先放行。 | 新版 DSH 加了官方命名空间，**在页面上补一行即可**跟版，不必改数据文件、不必等插件发版。 |
-| 规则可扩展（数据） | 同一组三个字段也写在预设对象上（`normalizePreset` 归一、`toDefinition` 原样传进 capability 行的 config）：`officialSectionPrefixes: ['api']` / `officialSectionNames: ['mcp-resource-servers-x']` / `officialSectionKeep: ['tool:mine']` | 适合批量维护或随 profile 分发；`officialSectionKeep` 反方向保护误落在保留命名空间里的第三方段。前缀自动补 `:`，重复项合并，空数组等于没写（沿用内置表）。字段随预设走，复制预设时一并复制；页面保存也**不会**抹掉手写的字段（`save` 会继承未被提交的规则字段）。 |
-| 漏检诊断 | `list` 的 `meta.officialFilter`，以及 `inspect` 按**草稿规则**返回的 `officialFilter` | 用运行时注册表里**真实存在**的 section 名做分类：`official`（会被移除）、`thirdParty`（保留）、`suspect`（命名空间看起来像官方——含 `dsh`/`deepseek`/`harness`/`deployment`——但不在规则内）。`suspect` 非空时，设置页在「注入方式」下方直接提示，这就是“新版官方的段正在漏过过滤”的可见信号。 |
+| 规则可扩展（页面） | 编辑器「注入方式」下方三栏，**只在选「自定义屏蔽（默认官方）」时出现**：**补充屏蔽提示词前缀** / **补充屏蔽提示词段名（完整名称）** / **保留（不屏蔽）提示词段名（完整名称）**。三栏都是**动态标签（chip）编辑器**（`aps-tagEditor`）：输入后按回车、逗号（含全角）、顿号、换行或移出焦点即提交为标签，点标签上的 × 或按退格删除；每栏下面还有一行**填写案例**（`aps-example`），因为"要填好几个时怎么写"是规则句回答不了的问题。值为空或字段缺失时**不预填任何标签**，不空则按存储数组逐项展示——内置默认值写在框下的说明行里（来自 `meta.sectionRuleDefaults`），避免把“没编辑过”显示成“编辑过”；删光所有标签 = 回到内置默认（保存时写 `[]`，Host 视为“无覆盖”，不会继承上一次的值）。提交前 trim + 去重（前缀是**普通字符串前缀**、逐字比较：不补冒号、不截取层级，`api` 与 `api:` 是两个不同前缀；输入 `a:b` 会命中 `a:b:c` 等一切以 `a:b` 开头的段；只想精确命中某一段请用第二栏）。**合并是有方向的：内置项始终参与，页面填的只是追加**——内置项不会作为标签预填；即使某个内置前缀没有被标签覆盖，它也仍然生效，页面会在框下就地提示“这些内置项仍生效”（栏为空时视为“用内置默认”，不提示）；判断“是否覆盖”同样按普通前缀关系（输入 `deployment` 即覆盖内置 `deployment:`）。第三栏（保留名单）是**精确段名**的保留规则，没有内置默认；命中的段直接进入保留段，不再单独分类。标签增删并入 `inspectKey`，350ms 防抖后把**草稿规则**随 `inspect` 的 `config` 发给 Host，自检分区随标签实时变化。 | 新版 DSH 加了官方命名空间，**在页面上补一个标签即可**跟版，不必改数据文件、不必等插件发版。 |
+| 规则可扩展（数据） | 同一组三个字段也写在预设对象上（`normalizePreset` 归一、`toDefinition` 原样传进 capability 行的 config）：`sectionRulePrefixes: ['api']` / `sectionRuleNames: ['mcp-resource-servers-x']` / `sectionRuleKeep: ['tool:mine']` | 适合批量维护或随 profile 分发；`sectionRuleKeep` 反方向保护误落在被屏蔽前缀范围内的第三方段。前缀原样保留、按普通字符串前缀匹配，重复项合并，空数组等于没写（沿用内置表）。字段随预设走，复制预设时一并复制；页面保存也**不会**抹掉手写的字段（`save` 会继承未被提交的规则字段）。 |
+| 分区诊断 | `list` 的 `meta.sectionFilter`，以及 `inspect` 按**草稿规则**返回的 `sectionFilter` | 用运行时注册表里**真实存在**的 section 名做分类：`blocked`（被规则屏蔽）与 `kept`（保留，含命中保留名单的段）。两类都带**计数和具体段名名单**（`blockedList` / `keptList`），设置页自检面板直接列出。不做“看起来像官方”的二次猜测：保留段就是保留段，规则没覆盖时它会出现在保留名单里，据此补前缀即可。 |
 
 ### 自动附带会话工作区（三种注入方式）
 
-`includeWorkspace`（默认开）从原来的「完全替换」专用提成了提示词区的通用选项，**追加 / 完全替换 / 只屏蔽官方三种方式都生效**。capability row 把 persona section 的 `text` 注册为**函数**：每次组装从 `context.agent.session.header.cwd` 取实时 cwd，非空时在其后追加 `\n\n当前任务工作区：<cwd>`。`cwd` 来源与 agent-loop 注册的 `cwd` 提示变量一致（`dsh-agent-loop/lib/index.js:1566`），但此处直接读 `context.agent` 而非 `{{cwd}}` 插值，以免函数返回值被二次插值、也不影响用户指令里原有的 `{{...}}`。cwd 取不到（空串）则原样返回指令文本，不出脏行。「只屏蔽官方」下即使指令为空也会注册该 section，让工作区行可以单独出现。设置页始终显示「附带工作区」勾选，存为 `includeWorkspace`，经 `normalizePreset` / `toDefinition` 透传到 capability row。
+`includeWorkspace`（默认开）从原来的「完全替换」专用提成了提示词区的通用选项，**追加 / 完全替换 / 自定义屏蔽（默认官方）三种方式都生效**。capability row 把 persona section 的 `text` 注册为**函数**：每次组装从 `context.agent.session.header.cwd` 取实时 cwd，非空时在其后追加 `\n\n当前任务工作区：<cwd>`。`cwd` 来源与 agent-loop 注册的 `cwd` 提示变量一致（`dsh-agent-loop/lib/index.js:1566`），但此处直接读 `context.agent` 而非 `{{cwd}}` 插值，以免函数返回值被二次插值、也不影响用户指令里原有的 `{{...}}`。cwd 取不到（空串）则原样返回指令文本，不出脏行。「自定义屏蔽（默认官方）」下即使指令为空也会注册该 section，让工作区行可以单独出现。设置页始终显示「附带工作区」勾选，存为 `includeWorkspace`，经 `normalizePreset` / `toDefinition` 透传到 capability row。
 
 ### 目录读取必须走预设 scope（曾经「没有可注入的技能」的根因）
 
@@ -168,7 +168,7 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 
 ## 运行时上下文（快照）如何生效
 
-模型每轮看到的 `Current runtime context…` 那段不是提示词 section，而是 **`assembly.contexts`**：`dsh-agent-loop` 每步 `assemble()` 后取 `renderContextSections()` 拼成文本，作为 user 消息注入会话（`RuntimeContextProjection.project`）。因为它与 `sections` 是两个字段，本插件此前的「完全替换」（`complete: true`）和「只屏蔽官方」（section 过滤）都碰不到它——快照永远全量注入。现在勾选清单直接过滤这个字段：
+模型每轮看到的 `Current runtime context…` 那段不是提示词 section，而是 **`assembly.contexts`**：`dsh-agent-loop` 每步 `assemble()` 后取 `renderContextSections()` 拼成文本，作为 user 消息注入会话（`RuntimeContextProjection.project`）。因为它与 `sections` 是两个字段，本插件此前的「完全替换」（`complete: true`）和「自定义屏蔽（默认官方）」（section 过滤）都碰不到它——快照永远全量注入。现在勾选清单直接过滤这个字段：
 
 | 环节 | 机制 |
 |---|---|
@@ -225,11 +225,11 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 
 | 端点 | 请求体 | 说明 |
 |---|---|---|
-| `list` | `{}` | 预设与状态、全局工具目录、按来源分组的技能目录、**快照上下文目录 `meta.contextCatalog`**（每行带 `required` / `order` / `known` / `source`：`registry` 表示读自运行时注册表，`table`/`observed` 表示回退到内置表或观测表）、`meta.contextRegistry`（`readable` / `scoped` / `scopeKeys`）、`meta.officialFilter`（`official` / `thirdParty` / `kept` / `suspect` 计数与疑似漏检段名）、`meta.officialSectionDefaults`（空规则栏自动填充用的内置命名空间/段名）、**能力标记 `meta.capabilities`**（`snapshotContexts` / `presetDuplicate` / `requiredSuppression` / `contextRegistryTruth` / `officialSectionRules`，供 Client 判断当前 Host 到底懂哪些字段） |
+| `list` | `{}` | 预设与状态、全局工具目录、按来源分组的技能目录、**快照上下文目录 `meta.contextCatalog`**（每行带 `required` / `order` / `known` / `source`：`registry` 表示读自运行时注册表，`table`/`observed` 表示回退到内置表或观测表）、`meta.contextRegistry`（`readable` / `scoped` / `scopeKeys`）、`meta.sectionFilter`（`blocked` / `kept` 计数与 `blockedList` / `keptList` 名单）、`meta.sectionRuleDefaults`（内置默认规则，供框下说明行展示）、**能力标记 `meta.capabilities`**（`snapshotContexts` / `presetDuplicate` / `requiredSuppression` / `contextRegistryTruth` / `sectionRules`，供 Client 判断当前 Host 到底懂哪些字段） |
 | `save` | 预设对象（无 `id` 表示新建；可选 `insertAfter: <源 id>` 把新预设插在该预设之后并把整列 `order` 重写为文档下标——复制预设用） | 校验并落盘，随后重新注册 |
 | `delete` | `{ id }` | 删除并重新注册其余预设 |
 | `toggle` | `{ id }` | 启用/停用 |
-| `inspect` | `{ id, config? }` | 读取该预设继承的工具面并套用本页配置，返回可用/被拒工具、启用技能、**保留/已屏蔽的快照上下文（`contexts` / `blockedContexts` / `forcedContexts` / `contextsManaged`）**——分区用的是与该预设运行时过滤**同一份** live `required` / `order`；`officialFilter` 按 `config` 里的草稿规则重算，编辑器改一栏就能看到漏检提示变化；可选 `config: { tools, skills, contexts, requiredSuppressed }` 为编辑器未保存内容的 dry-run 覆盖（结果带 `draft: true`） |
+| `inspect` | `{ id, config? }` | 读取该预设继承的工具面并套用本页配置，返回可用/被拒工具、启用技能、**保留/已屏蔽的快照上下文（`contexts` / `blockedContexts` / `forcedContexts` / `contextsManaged`）**——分区用的是与该预设运行时过滤**同一份** live `required` / `order`；`sectionFilter` 按 `config` 里的草稿规则重算（`blocked` / `kept` 计数 + `blockedList` / `keptList` 名单），编辑器增删一个规则标签就能看到分区变化；可选 `config: { tools, skills, contexts, requiredSuppressed, sectionRulePrefixes, sectionRuleNames, sectionRuleKeep }` 为编辑器未保存内容的 dry-run 覆盖（结果带 `draft: true`；空的规则数组表示回落到内置规则） |
 | `reload` | `{}` | 从数据文件重新注册全部预设 |
 
 ## 验证状态
@@ -248,13 +248,13 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
   - 注册表实存但从未被任何 Agent 观测到的 context 也进入目录（否则面板恰好藏起最该展示的那一行）。
   - 组装侧与面板分区一致：被白名单排除的行里，只有 runtime 不再保护的那一行真的消失。
   - 读不到注册表时整条链路回退内置表（`required`/`order` 均保持旧值）。
-  - `official-only` 规则扩展、前缀归一与去重、`officialSectionKeep` 例外、`suspect` 疑似漏检识别。
-- **官方段规则 UI（`verify-official-rules-ui.mjs`）**
-  - 三栏只在「只屏蔽官方」下渲染，切回「追加」立即消失。
+  - `custom-official` 规则扩展、普通前缀匹配与去重、`sectionRuleKeep` 例外、实存段的 blocked/kept 分区。
+- **段规则 UI（`verify-official-rules-ui.mjs`）**
+  - 三栏只在「自定义屏蔽（默认官方）」下渲染，切回「追加」立即消失。
   - 每栏带一行填写案例（三例：前缀 `api:docs`、精确段名 `tool:bash`、保留 `tool:bash`），且所有 hint/案例都是纯文本——`**` 之类的 markdown 不会漏进界面。
-  - 字段为空/缺失时输入框预填 `meta.officialSectionDefaults`（内置 9 个命名空间 + 精确段名）；已配置的字段显示自身值，未配置的那一栏仍预填默认。
+  - 字段为空/缺失时**不预填标签**，内置默认值写在框下说明行（`meta.sectionRuleDefaults`，内置 9 个前缀 + 精确段名）；已配置的字段按存储数组显示标签。
   - 编辑后保存载荷是 trim + 去重后的数组（ASCII 逗号、全角逗号、换行都当分隔符）；清空一栏保存为 `[]`（= 不使用覆盖），输入焦点期间不会弹回默认文本。
-  - 自检返回的 `officialFilter.suspect` 跟随草稿，在「注入方式」下方提示。
+  - 自检返回的 `sectionFilter` 计数与名单跟随草稿，在自检面板直接展示。
 - **自检面板用语一致（`verify-copy-and-contexts-ui.mjs`）**
   - 摘要条上的每个计数与它下方列表的标题用**同一套措辞**（如「被名单拒绝的工具 133 个」↔「被名单拒绝的工具（133）」），测试用"去掉数字/括号/量词后主干相同"来钉住这一点；「继承工具面 N 个」是唯一没有对应列表的一项（它就是全部继承面）。
 - **技能侧（对齐 dsh-skills-manager）**
@@ -280,7 +280,7 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 
 - **导出预设列表 → 剪贴板（`node test/verify-export-clipboard.mjs`，29 项全部通过）**：不依赖浏览器——用最小 React shim 挂载 `StudioSection`，把渲染树当数据驱动（找按钮、`await onClick`、读剪贴板日志）。覆盖：按钮出现在组头部且排在「+ 新建预设模式」左侧、同一 `aps-groupHeadActions` 容器、次要样式 `aps-btn`、加载中禁用；导出内容严格等于 `[{id,name,description}]`（顺序一致、含停用预设、空描述保留为空串、提示词/技能/工具不外泄、带 2 空格缩进）、成功提示带条目数且无错误行；`navigator.clipboard` 缺失时走 `textarea` + `execCommand` 且临时节点被删除；复制失败显示错误行且**不**显示成功提示；空列表不写剪贴板并提示无可导出；`zh`/`en` 两本词典键集与 `{}` 占位符一致。
 
-- **只屏蔽官方 / 附带工作区（`node test/verify-official-only.mjs`、`node test/verify-complete-workspace.mjs`）**：模拟 root → preset scope → agent scope 的真实层级。覆盖：官方 `harness/plan/team/tool/tools/context/ui/app/mcp-resource-servers` 段被移除；第三方自定义段与 `mcp:<server>` 保留（含 Agent scope 注册的段）；`tools` / `contexts` 原样保留；预设人设段保留并追加实时 cwd；空提示词 + 工作区开/关的三种组合；`complete` 仍只留人设段；追加 / 完全替换 / 只屏蔽官方三种方式都追加工作区。
+- **自定义屏蔽（默认官方） / 附带工作区（`node test/verify-official-only.mjs`、`node test/verify-complete-workspace.mjs`）**：模拟 root → preset scope → agent scope 的真实层级。覆盖：官方 `harness/plan/team/tool/tools/context/ui/app/mcp-resource-servers` 段被移除；第三方自定义段与 `mcp:<server>` 保留（含 Agent scope 注册的段）；`tools` / `contexts` 原样保留；预设人设段保留并追加实时 cwd；空提示词 + 工作区开/关的三种组合；`complete` 仍只留人设段；追加 / 完全替换 / 自定义屏蔽（默认官方）三种方式都追加工作区。
 
 - **复制预设 + 运行时上下文分组（`node test/verify-copy-and-contexts-ui.mjs`，Client 渲染级，全部通过）**：与导出测试共用 `_studio-harness.mjs`（浏览器桩 + React shim + 弹窗桩 + Host API 录制）。覆盖：三张卡片底栏都有「复制」、位置严格是「停用/启用 → 复制 → 删除」、样式 `aps-iconButton`、**停用卡片同样提供**；点击复制的载荷 = `id:''` + 名字 `审查（复制 2）`（源名的（复制 1）已被别的卡片占用时继续递增）+ `insertAfter` 指向源 + 启用状态与各字段逐项一致 + `contexts` 原样带过，成功提示含新名字，页面**停留在列表**；未管理的源复制出的载荷不带 `contexts`。编辑器分组顺序「提示词 → 运行时上下文 → 技能」；每个目录项一行（中文标签 + 技术名 + 说明），两个 required 行勾选且**禁用**、带「必需 · 不可关闭」标签；取消一个可选项后保存的数组不含它但两个必需名仍在；**未管理预设打开时全勾**，直接保存则把面板展示的全量清单落盘；「取消全选」只清空可选项、必需项仍勾选。自检面板渲染「保留快照 3」「已屏蔽 2」计数与两个名单（屏蔽名单含观测到的第三方项），未管理预设显示「未管理快照」而不是计数。
 - **快照白名单端到端（`node test/verify-context-snapshot.mjs`）**：驱动**真实** `SystemPrompt` 服务 + root → preset scope → agent scope 三层，装上 store 的 Agent scope 后组装。覆盖：托管预设只注入勾选的可选项，**白名单里没写的两个 required 项照样注入**，未勾选的官方项与未知第三方项一律屏蔽；`refreshContext()`（agent-loop 每步都调）保留 required 且**不复活**被屏蔽项；未管理预设（字段缺失）注入**全部**官方项与第三方项，升级零行为变化。纯函数侧：`normalizePreset` 缺失字段 = `undefined`、数组去重裁剪、非数组不算白名单；`resolveContextSelection` 的保留/屏蔽分区与 `CONTEXT_ORDERS` 顺序（观测项殿后）；`insertAndReindex` 副本插到源之后且整列 order 重写为下标、未知源回落追加；副本命名从「（复制 1）」起、被占用则递增、副本的副本直接叠加。
@@ -312,7 +312,7 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 - `required: true` 的快照项**默认关不掉**：官方三层机制强制注入（`assemble` 的 required 通道、每步 `refreshContext()`、`dsh-working-directory` 自己的 `prepend` 修复监听器）。现在可以关，但要走行下那个**默认不勾**的「高级 · 强制屏蔽」，代价是这条路依赖实现细节而非公开契约：DSH 升级可能让它**静默失效**（不报错，只是该项又出现了）。屏蔽「当前工作区」还会让模型失去位置感、可能猜错路径。主复选框仍是只读呈现（禁用），高级开关才是控制点。
   - 哪些名字算 required 已经从「内置表」改成「运行时注册表」：`systemPrompt.layers.merge(scope, layer => layer.contexts)` 是 `assemble()` 自己读的同一份视图，`required` / `order` 都取运行时的值。前提是 `layers` 与 `merge` 的字段名不变（未文档化 API，但只是**读**，失败即回退内置表，不会破坏组装）。
   - 若某预设尚未记录到 standing scope key（`meta.contextRegistry.scopeKeys` 为 0），读取退化为全局层视图：全局注册的必需项仍然准确，预设层额外注册的 required 项要等一次 `acquireScope` 之后才被看见。
-- 官方段归属**只能靠命名空间**：提示词注册表不保存 section 的来源，没有运行时 API 能回答“这是不是 DSH 注册的”。所以 `official-only` 的判定仍是一张构建时的命名空间表，只是现在**可由 capability 行 config 扩展**，且 `meta.officialFilter.suspect` 会把「看起来像官方但不在规则内」的实存段报出来，页面对应位置直接提示。
+- 段归属**只能靠命名空间**：提示词注册表不保存 section 的来源，没有运行时 API 能回答“这是不是 DSH 注册的”。所以 `custom-official` 的判定仍是一张构建时的命名空间表，只是现在**可由 capability 行 config 扩展**（普通字符串前缀，任意层级都可写）；自检面板把实际分区连同段名一起列出来，规则没覆盖到的段会出现在保留名单里，据此补前缀即可，不再做“疑似官方”的猜测。
 - 快照清单里的**第三方项不再完全依赖观测**：注册表读得到时，实存的每一条 context 都会进入清单；只有读不到时才回退到「已被某个 Agent 组装过才出现」。已保存的勾选名始终不受影响。
 
 - 工具名单对**内置工具**的收窄原本只能停留在调用级（guard）：DSH 的 `restrict` 契约无法隐藏同一作用域层注册的工具。现在 `system-prompt/assemble` 过滤会把被拒工具连同其 `tool:` guidance 段一并从提示词组装中剔除，模型的工具清单不再携带它们——但这仍是**提示词卫生**：`schemas()` 层面这些工具依旧可见，调用级由 guard 拒绝兜底。
@@ -326,7 +326,7 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 | 文件 | 职责 |
 |---|---|
 | `index.js` | Host 半：数据文件读写、基准行读取、预设注册、技能来源目录、**运行时注册表视图（`required`/`order` 真值）**、快照上下文目录与过滤监听、复制插入（`insertAfter` + order 重写）、运行时自检、本地 HTTP API |
-| `capability.js` | 预设内挂载的能力行：提示词 section、技能 provider 注入、**官方段规则集（`resolveOfficialRules` / `classifySections`）**（快照过滤不在这里——它是 per-Agent 工作，与工具 restrict/guard 同侧放 Host） |
+| `capability.js` | 预设内挂载的能力行：提示词 section、技能 provider 注入、**段规则集（`resolveSectionRules` / `classifySections`）**（快照过滤不在这里——它是 per-Agent 工作，与工具 restrict/guard 同侧放 Host） |
 | `client.js` | Client 半：设置页 section（列表 + 复制 + 编辑器 + 运行时上下文勾选清单 + 技能二级菜单 + 运行时自检），自带 CSS |
 | `cordis.patch.yml` | bundle 补丁：插入 Host 行 |
 | `locale/*.json` | 插件清单中显示的中英文标题与描述 |

@@ -25,16 +25,16 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { classifySections, resolveOfficialRules } from './capability.js'
+import { classifySections, resolveSectionRules } from './capability.js'
 
 /**
- * The rule set a preset inherits when it stores no `official-only` override.
+ * The rule set a preset inherits when it stores no `custom-official` override.
  *
  * The page PREFILLS its three rule inputs from this (an empty array or an
  * absent field means "the built-in namespaces", and showing an empty box would
  * hide what the filter will actually do). Computed once: it is pure config.
  */
-const OFFICIAL_SECTION_DEFAULTS = resolveOfficialRules(undefined)
+const OFFICIAL_SECTION_DEFAULTS = resolveSectionRules(undefined)
 
 /** Settings page API prefix; the Client half fetches these exact paths. */
 const API_PREFIX = '/api/dsh-my-agent-preset'
@@ -194,7 +194,7 @@ function agentScopeDead(agent) {
 
 /** Normalize one preset's prompt-injection mode. */
 function normalizeInstructionMode(value) {
-  return value === 'complete' || value === 'official-only' ? value : 'append'
+  return value === 'complete' || value === 'custom-official' ? value : 'append'
 }
 
 /**
@@ -202,7 +202,7 @@ function normalizeInstructionMode(value) {
  *
  * The snapshot the model sees is `joinContextSections(assembly.contexts)`: a
  * `contexts` field, SEPARATE from `sections`. Neither `complete: true` nor the
- * `official-only` filter touches it, so today the snapshot injects in full no
+ * `custom-official` filter touches it, so today the snapshot injects in full no
  * matter which injection mode a preset picks. `CONTEXT_CATALOG` mirrors every
  * `systemPrompt.context()` registration in the bundled rows, with the exact
  * `name` each one uses, its `CONTEXT_ORDERS` sort key, and whether it is
@@ -338,7 +338,7 @@ function readContextRegistry(ctx, scope) {
 /**
  * Every prompt-section name the registry knows through one scope.
  *
- * Used only for diagnostics: `official-only` decides by name, so the page can
+ * Used only for diagnostics: `custom-official` decides by name, so the page can
  * compare the sections that actually exist against the namespaces this build
  * recognizes and show which ones a newer DSH may have added. Returns
  * undefined when the registry cannot be read (same probe as above).
@@ -413,19 +413,19 @@ function normalizeContexts(value) {
 }
 
 /**
- * The three optional `official-only` rule fields, lifted from stored input.
+ * The three optional `custom-official` rule fields, lifted from stored input.
  *
  * They are stored verbatim (normalised to string lists) and passed straight
- * into the capability row's config, which is where `resolveOfficialRules()`
+ * into the capability row's config, which is where `resolveSectionRules()`
  * reads them. A field is only written when it is a non-empty array: an absent
- * key means "use the built-in namespaces", which is what every preset saved
+ * key means "use the built-in prefixes", which is what every preset saved
  * before this feature must keep doing.
  * @param input - the stored preset object.
  * @returns an object with only the fields that carry a value.
  */
-function officialSectionRules(input) {
+function sectionRuleFields(input) {
   const out = {}
-  for (const key of ['officialSectionPrefixes', 'officialSectionNames', 'officialSectionKeep']) {
+  for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
     const list = Array.isArray(input?.[key]) ? stringList(input[key]) : []
     if (list.length > 0) out[key] = list
   }
@@ -455,14 +455,14 @@ export function normalizePreset(input) {
     instructions: typeof input.instructions === 'string' ? input.instructions : '',
     instructionMode: normalizeInstructionMode(input.instructionMode),
     // The workspace line is a prompt-wide option: it applies in `append`,
-    // `complete`, and `official-only` mode. Defaults to on when the field is
+    // `complete`, and `custom-official` mode. Defaults to on when the field is
     // absent so existing presets gain the behavior.
     includeWorkspace: input.includeWorkspace !== false,
-    // The `official-only` rule set, carried ON the preset: a deployment that
+    // The `custom-official` rule set, carried ON the preset: a deployment that
     // meets a newer DSH namespace can widen the filter from the data file (and,
     // later, the page) without waiting for a release. Absent stays absent so
     // existing presets keep running on the built-in namespaces.
-    ...officialSectionRules(input),
+    ...sectionRuleFields(input),
     // Absent (not an array) = this preset does not manage the runtime-context
     // snapshot at all; present = the array is the strict whitelist of
     // suppressible context names (required names are always injected anyway,
@@ -619,11 +619,11 @@ export function toDefinition(preset, baselineRows = [], skillIndex = new Map()) 
       includeWorkspace: preset.includeWorkspace !== false,
       skills: selectedSkills,
       tools: toolSelection,
-      // Widened namespaces travel with the preset, so the filter a stored
+      // Widened prefixes travel with the preset, so the filter a stored
       // preset runs is the one its own data file describes.
-      ...(Array.isArray(preset.officialSectionPrefixes) ? { officialSectionPrefixes: preset.officialSectionPrefixes } : {}),
-      ...(Array.isArray(preset.officialSectionNames) ? { officialSectionNames: preset.officialSectionNames } : {}),
-      ...(Array.isArray(preset.officialSectionKeep) ? { officialSectionKeep: preset.officialSectionKeep } : {}),
+      ...(Array.isArray(preset.sectionRulePrefixes) ? { sectionRulePrefixes: preset.sectionRulePrefixes } : {}),
+      ...(Array.isArray(preset.sectionRuleNames) ? { sectionRuleNames: preset.sectionRuleNames } : {}),
+      ...(Array.isArray(preset.sectionRuleKeep) ? { sectionRuleKeep: preset.sectionRuleKeep } : {}),
     },
   })
   for (const row of Array.isArray(baselineRows) ? baselineRows : []) {
@@ -1390,7 +1390,7 @@ export class PresetStore {
       // Runtime-context snapshot whitelist. `assembly.contexts` is the SEPARATE
       // field the model-facing `Current runtime context. This snapshot
       // supersedes…` block is built from, so neither `complete` nor the
-      // `official-only` section filter touches it. A preset that stores the
+      // `custom-official` section filter touches it. A preset that stores the
       // field gets its own waterfall listener here — the same place, and the
       // same proven-reachable context, the tool-assembly hygiene filter uses.
       //
@@ -1827,16 +1827,16 @@ export class PresetStore {
   }
 
   /**
-   * What the `official-only` rule set recognizes among the LIVE sections.
+   * What the `custom-official` rule set recognizes among the LIVE sections.
    *
-   * `official-only` filters by namespace, and the namespace list is a copy of
-   * the bundled rows taken when this plugin was built. That copy cannot be
-   * replaced by detection — the prompt registry stores no owner provenance —
-   * so the honest answer is a report: how many live sections the rule set
-   * removes, and which surviving ones LOOK like DSH rows anyway (`suspect`).
-   * A newer build that adds a namespace shows up here as a leak the operator
-   * can fix by adding a prefix to this row's config, without a release.
-   * @returns `{ available, sections, official, thirdParty, kept, suspect, rules }`.
+   * `custom-official` filters by plain string prefix, and the built-in prefix
+   * list is a copy of the bundled rows taken when this plugin was built. That
+   * copy cannot be replaced by detection — the prompt registry stores no owner
+   * provenance — so the honest answer is a report: which live sections the
+   * rule set removes and which it keeps, each with its names. A section that
+   * survives a filter the operator expected to match is visible in the kept
+   * list, and a prefix added to this row's config fixes it without a release.
+   * @returns `{ available, sections, blocked, kept, rules, blockedList, keptList }`.
    */
   /**
    * The official-section rules the CAPABILITY row actually runs with.
@@ -1846,16 +1846,16 @@ export class PresetStore {
    * keeps the page's report aligned with what will really be removed when a
    * deployment widens the prefixes; the Host config is only the fallback for
    * a deployment that mounts the Host half without the capability row.
-   * @returns `{ prefixes, names, keep }` (see `resolveOfficialRules`).
+   * @returns `{ prefixes, names, keep }` (see `resolveSectionRules`).
    */
-  officialRuleSet(config) {
-    return resolveOfficialRules(config ?? this.capabilityConfig())
+  sectionRuleSet(config) {
+    return resolveSectionRules(config ?? this.capabilityConfig())
   }
 
   /**
    * The capability row's raw config, or this Host row's own.
    *
-   * One traversal serving both `officialRuleSet()` and `classifySections()`:
+   * One traversal serving both `sectionRuleSet()` and `classifySections()`:
    * the classifier needs the CONFIG (it resolves the rules itself), and both
    * must read the same object or the report could describe rules the filter
    * will not run.
@@ -1874,9 +1874,9 @@ export class PresetStore {
     return this.config ?? {}
   }
 
-  officialFilterReport(config, presetId) {
+  sectionFilterReport(config, presetId) {
     const source = config ?? this.capabilityConfig()
-    const rules = this.officialRuleSet(source)
+    const rules = this.sectionRuleSet(source)
     const summary = {
       available: false,
       rules: { prefixes: rules.prefixes.length, names: rules.names.size, keep: rules.keep.size },
@@ -1902,13 +1902,19 @@ export class PresetStore {
     }
     if (names === undefined) return summary
     const classified = classifySections([...names], source)
+    // Counts alone hide the decision: the panel needs the names to answer
+    // "which sections did this rule actually block / keep?" A section list in
+    // a scope is normally tens of rows, so returning it is cheap; the client
+    // renders it in the same scrollable NameList as tools and contexts.
+    const blockedList = [...classified.blocked].sort()
+    const keptList = [...classified.kept].sort()
     return {
       available: true,
       sections: names.size,
-      official: classified.official.length,
-      thirdParty: classified.thirdParty.length,
-      kept: classified.kept.length,
-      suspect: classified.suspect,
+      blocked: blockedList.length,
+      kept: keptList.length,
+      blockedList,
+      keptList,
       rules: summary.rules,
     }
   }
@@ -1981,10 +1987,10 @@ export class PresetStore {
             // the answer came from instead of trusting a shipped table.
             'contextRegistryTruth',
             // The official-section rule set can be widened through config, and
-            // `officialFilter` reports which live sections the current rule set
-            // recognizes — so a newer DSH namespace that would leak becomes
-            // visible in the page.
-            'officialSectionRules',
+            // `sectionFilter` names the live sections the current rule set
+            // blocks and keeps — so a newer DSH section that survives is
+            // visible in the page, with its name.
+            'sectionRules',
           ],
           // The snapshot list the page renders: every contribution DSH's own
           // rows register (with its `required` flag, because the registry
@@ -2005,16 +2011,16 @@ export class PresetStore {
             // catalog answered from the global layer plus the shipped table.
             scopeKeys: this.scopeKeys.size,
           },
-          // The other half of the same staleness problem: `official-only`
-          // removes sections by NAMESPACE, and the namespace list ships with
-          // this plugin. `suspect` names are live sections in a namespace the
-          // rule set does not know but that reads like a DSH row — the leak a
-          // newer build would produce, shown instead of silently injected.
-          officialFilter: this.officialFilterReport(),
-          // What an EMPTY rule field means. The page prefills its three inputs
-          // from this, so a preset that stores nothing shows the rule set that
-          // is really in force instead of three blank boxes.
-          officialSectionDefaults: {
+          // The other half of the same staleness problem: `custom-official`
+          // removes sections by prefix, and the built-in prefix list ships with
+          // this plugin. The report names the sections that survive, so a rule
+          // that no longer covers a newer build's namespace is visible instead
+          // of silently incomplete.
+          sectionFilter: this.sectionFilterReport(),
+          // What an EMPTY rule field means. The page states these below its
+          // three chip fields (it does not prefill them), so a preset that
+          // stores nothing still shows the rule set really in force.
+          sectionRuleDefaults: {
             prefixes: [...OFFICIAL_SECTION_DEFAULTS.prefixes],
             names: [...OFFICIAL_SECTION_DEFAULTS.names],
           },
@@ -2039,12 +2045,13 @@ export class PresetStore {
     // the first save. An update keeps whatever the document already stored.
     if (index < 0 && payload.contexts === undefined) payload.contexts = DEFAULT_CONTEXT_NAMES
     const now = new Date().toISOString()
-    // The page has no control for the `official-only` rule set yet, so an edit
-    // must CARRY the stored rules forward. Rebuilding the preset from the
-    // payload alone would silently drop a namespace an operator added by hand
-    // to the data file — the edit that motivated the feature would undo it.
-    // A copy inherits its source's rules for the same reason. An explicit
-    // value in the payload still wins (so a future UI can also clear them).
+    // A field the page does not submit (an older client, a hand-written
+    // profile) must be CARRIED forward: rebuilding the preset from the payload
+    // alone would silently drop a prefix an operator added by hand to the
+    // data file — the edit that motivated the feature would undo it. A copy
+    // inherits its source's rules for the same reason. An explicit value in
+    // the payload still wins: the chip fields always send their array, and an
+    // empty array clears the override.
     const ruleSource =
       index >= 0
         ? this.presets[index]
@@ -2053,14 +2060,14 @@ export class PresetStore {
       ruleSource === undefined
         ? {}
         : {
-            ...(Array.isArray(ruleSource.officialSectionPrefixes)
-              ? { officialSectionPrefixes: ruleSource.officialSectionPrefixes }
+            ...(Array.isArray(ruleSource.sectionRulePrefixes)
+              ? { sectionRulePrefixes: ruleSource.sectionRulePrefixes }
               : {}),
-            ...(Array.isArray(ruleSource.officialSectionNames)
-              ? { officialSectionNames: ruleSource.officialSectionNames }
+            ...(Array.isArray(ruleSource.sectionRuleNames)
+              ? { sectionRuleNames: ruleSource.sectionRuleNames }
               : {}),
-            ...(Array.isArray(ruleSource.officialSectionKeep)
-              ? { officialSectionKeep: ruleSource.officialSectionKeep }
+            ...(Array.isArray(ruleSource.sectionRuleKeep)
+              ? { sectionRuleKeep: ruleSource.sectionRuleKeep }
               : {}),
           }
     const next = normalizePreset({
@@ -2152,14 +2159,15 @@ export class PresetStore {
     // The advanced force-suppress list is previewed the same way: an editor
     // draft overrides the stored value, and the runtime filter reads the very
     // same names.
-    // The `official-only` rule set is previewed the same way: an empty or
-    // absent field means "the built-in namespaces", so a draft that clears a
-    // box falls back instead of pretending to disable the filter.
+    // The `custom-official` rule set is previewed the same way: an empty or
+    // absent STORED field means "the built-in prefixes", so a draft that
+    // clears a chip field sends `[]` and must fall back instead of inheriting
+    // the stored rule. Keeping an explicitly empty array is what lets that
+    // override win; only a MISSING key falls back to the preset.
     const ruleFields = (value) => {
       const out = {}
-      for (const key of ['officialSectionPrefixes', 'officialSectionNames', 'officialSectionKeep']) {
-        const list = Array.isArray(value?.[key]) ? stringList(value[key]) : []
-        if (list.length > 0) out[key] = list
+      for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
+        if (Array.isArray(value?.[key])) out[key] = stringList(value[key])
       }
       return out
     }
@@ -2179,10 +2187,10 @@ export class PresetStore {
       listed: [...listed].sort(),
       // True when the answer applied the editor's unsaved selection.
       ...(override !== undefined ? { draft: true } : {}),
-      // What the `official-only` filter would remove under the STORED or
+      // What the `custom-official` filter would remove under the STORED or
       // DRAFTED rule set for THIS preset, so the panel can show the leak
       // warning update as the boxes are edited.
-      officialFilter: this.officialFilterReport(draftRules, requestedId),
+      sectionFilter: this.sectionFilterReport(draftRules, requestedId),
     }
     try {
       const tools = this.ctx.get('tools')

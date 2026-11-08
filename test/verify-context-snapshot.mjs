@@ -3,7 +3,7 @@
  *
  * The model-facing `Current runtime context. This snapshot supersedes…` block
  * is `joinContextSections(assembly.contexts)` — a field SEPARATE from
- * `sections`, so neither `complete` nor `official-only` ever trimmed it. A
+ * `sections`, so neither `complete` nor `custom-official` ever trimmed it. A
  * preset that stores the `contexts` array now installs a
  * `system-prompt/assemble` listener on its Agent's own scope (the same proven
  * placement the tool-assembly hygiene filter uses) and filters THAT field.

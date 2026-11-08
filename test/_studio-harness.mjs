@@ -4,9 +4,10 @@
  * client.js is a browser bundle (`window.__ModuleLoader__.load(...)`), so any
  * test of its page must install browser stubs, load the factory, and mount
  * `StudioSection` under a small React shim (working `useState`/`useRef`,
- * run-once `useEffect`) that renders the tree as plain data. This module owns
- * that machinery; each test then drives the rendered tree — click handlers,
- * clipboard writes, and the save/inspect payloads the page sends.
+ * per-instance hook state, dependency-aware `useEffect` with cleanup) that
+ * renders the tree as plain data. This module owns that machinery; each test
+ * then drives the rendered tree — click handlers, clipboard writes, and the
+ * save/inspect payloads the page sends.
  *
  * `mountStudio` answers the Host API from canned data and RECORDS every call,
  * so a test can assert what the page would persist without a running Host.
@@ -50,15 +51,23 @@ const FRAGMENT = Symbol('fragment')
  */
 export function mountRoot(Component, props) {
   const frames = new Map()
+  const visits = new Map()
   const effectQueue = []
-  const effectsSeen = new WeakMap()
   let current = null
   let dirty = true
   let latest = null
 
   const frameFor = (fn) => {
-    if (!frames.has(fn)) frames.set(fn, { slots: [], index: 0 })
-    const entry = frames.get(fn)
+    // One frame per INSTANCE, not per component function: the editor renders
+    // three TagInputs, and a per-function slot table would make them share a
+    // single `text`/ref state. Real React keys instances by position in the
+    // tree, so hook order is stable across a re-render — count visits in render
+    // order and key the frame by function + visit index.
+    const visit = visits.get(fn) ?? 0
+    visits.set(fn, visit + 1)
+    const key = `${String(fn.name)}\u0000${visit}`
+    if (!frames.has(key)) frames.set(key, { slots: [], index: 0 })
+    const entry = frames.get(key)
     entry.index = 0
     return entry
   }
@@ -82,13 +91,47 @@ export function mountRoot(Component, props) {
       if (!(i in entry.slots)) entry.slots[i] = { current: initial }
       return entry.slots[i]
     },
-    useCallback: (fn) => fn,
-    useEffect: (fn) => {
+    useCallback: (fn, deps) => {
       const entry = current
       const i = entry.index++
-      const seen = effectsSeen.get(entry) ?? 0
-      effectsSeen.set(entry, seen + 1)
-      if (seen === 0) effectQueue.push(fn)
+      const previous = entry.slots[i]
+      const list = Array.isArray(deps) ? deps : undefined
+      // Memoize like React: a stable callback must stay stable, or an effect
+      // that depends on it re-runs on every render.
+      const changed =
+        previous === undefined ||
+        list === undefined ||
+        previous.deps === undefined ||
+        list.length !== previous.deps.length ||
+        list.some((dep, index) => Object.is(dep, previous.deps[index]) === false)
+      if (!changed) return previous.fn
+      const state = { deps: list === undefined ? undefined : [...list], fn }
+      entry.slots[i] = state
+      return fn
+    },
+    useEffect: (fn, deps) => {
+      const entry = current
+      const i = entry.index++
+      const previous = entry.slots[i]
+      const list = Array.isArray(deps) ? deps : undefined
+      // Dependency comparison is what lets a test see a re-run: the editor
+      // re-asks `inspect` when its key changes, which is the behavior under
+      // test. A missing dependency list means "after every render", matching
+      // React (no component here uses that form).
+      const changed =
+        previous === undefined ||
+        list === undefined ||
+        previous.deps === undefined ||
+        list.length !== previous.deps.length ||
+        list.some((dep, index) => Object.is(dep, previous.deps[index]) === false)
+      if (!changed) return
+      const state = { deps: list === undefined ? undefined : [...list], cleanup: previous?.cleanup }
+      entry.slots[i] = state
+      effectQueue.push(async () => {
+        if (typeof state.cleanup === 'function') state.cleanup()
+        const result = fn()
+        state.cleanup = typeof result === 'function' ? result : undefined
+      })
     },
   }
 
@@ -100,6 +143,13 @@ export function mountRoot(Component, props) {
     } finally {
       current = outer
     }
+  }
+
+  /** Render the root; instance visit counters restart for every render pass. */
+  const renderRoot = () => {
+    visits.clear()
+    latest = render(Component, props)
+    return latest
   }
 
   const expand = (node) => {
@@ -129,7 +179,7 @@ export function mountRoot(Component, props) {
       for (let round = 0; round < rounds; round += 1) {
         if (dirty) {
           dirty = false
-          latest = render(Component, props)
+          renderRoot()
         }
         if (await runEffects() > 0) {
           await tick()
@@ -150,7 +200,7 @@ export function mountRoot(Component, props) {
         if (!dirty && ran === 0) break
         if (dirty) {
           dirty = false
-          latest = render(Component, props)
+          renderRoot()
         }
       }
       return latest

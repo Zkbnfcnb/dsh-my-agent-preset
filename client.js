@@ -84,6 +84,19 @@ window.__ModuleLoader__.load({
 .aps-select{appearance:none;cursor:pointer}
 .aps-textarea{padding:8px 12px;min-height:92px;resize:vertical;font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12.5px}
 .aps-input:focus-visible,.aps-textarea:focus-visible,.aps-select:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary)}
+/* Chip editor: the same 34px box/border metrics as .aps-input, with the chips
+   and the caret sharing one row. Focus lives on the inner input, so the ring is
+   drawn by :focus-within on the shell. */
+.aps-tagEditor{box-sizing:border-box;width:100%;min-height:34px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:3px 6px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-3);cursor:text}
+.aps-tagEditor:focus-within{border-color:var(--dsw-alias-state-business-primary)}
+.aps-tag{display:inline-flex;align-items:center;max-width:100%;gap:3px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);padding:1px 2px 1px 6px;font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;line-height:17px}
+.aps-tagText{min-width:0;overflow-wrap:anywhere}
+.aps-tagRemove{appearance:none;border:0;background:0 0;font:inherit;font-size:12px;line-height:1;color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));border-radius:var(--dsw-radius-sm);padding:0 4px;cursor:pointer}
+.aps-tagRemove:hover{background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary)}
+.aps-tagRemove:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.aps-tagInput{flex:1 1 96px;min-width:96px;box-sizing:border-box;border:0;background:0 0;font:inherit;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary);height:26px;padding:0 4px}
+.aps-tagInput:focus-visible{outline:none}
+.aps-tagInput::placeholder{color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary))}
 .aps-seg{display:inline-flex;gap:2px;background:var(--dsw-alias-bg-layer-3);border-radius:var(--dsw-radius-md);padding:2px}
 .aps-segItem{appearance:none;border:0;background:0 0;font:inherit;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary);border-radius:var(--dsw-radius-sm);padding:4px 12px;cursor:pointer}
 .aps-segItem[aria-pressed='true']{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-weight:500}
@@ -155,7 +168,7 @@ window.__ModuleLoader__.load({
 .aps-inspect{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:10px 12px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:8px}
 .aps-toggle{display:flex;font-size:12px;align-items:center;gap:2px;flex-wrap:wrap}
 .aps-inspectHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.aps-inspectCount{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
+.aps-inspectCount{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
 .aps-nameListBlock{margin-top:10px}
 .aps-nameListTitle{margin:0 0 4px;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
 .aps-nameList{margin:0;padding:0;list-style:none;max-height:190px;overflow:auto;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-2)}
@@ -188,16 +201,16 @@ window.__ModuleLoader__.load({
       groupBasic: '基本信息',
       groupPrompt: '提示词',
       instructions: '系统提示词',
-      instructionsHint: '写入该模式的系统提示词；留空则沿用部署人设（「只屏蔽官方」下留空 = 不注入人设）。',
+      instructionsHint: '写入该模式的系统提示词；留空则沿用部署人设（在「自定义屏蔽（默认官方）」下留空 = 不注入人设）。',
       instructionMode: '注入方式',
       modeAppend: '追加',
       modeComplete: '完全替换',
-      modeOfficial: '只屏蔽官方',
+      modeCustomBlock: '自定义屏蔽（默认官方）',
       modeAppendHint: '只用这段文字替换人设前缀，保留 DSH 其它系统提示词（工具指导等）。',
       modeCompleteHint: '只使用这段文字，移除所有其它系统提示词（含第三方插件注入）。',
-      modeOfficialHint: '只用这段文字作为人设，只移除 DSH 官方系统提示词，保留第三方插件与外部 MCP 注入的提示词。',
+      modeCustomBlockHint: '只用这段文字作为人设，按下方三栏规则屏蔽提示词：默认屏蔽 DSH 官方段，可补充屏蔽前缀或完整段名，也可点名保留某些段；第三方插件与外部 MCP 注入的提示词默认保留。',
       includeWorkspace: '附带工作区',
-      includeWorkspaceHint: '在提示词末尾自动附上当前会话工作区路径；追加、完全替换、只屏蔽官方三种方式都生效（默认开启）。',
+      includeWorkspaceHint: '在提示词末尾自动附上当前会话工作区路径；追加、完全替换、自定义屏蔽（默认官方）三种方式都生效（默认开启）。',
       includeWorkspaceOn: '在提示词末尾附带当前会话工作区',
       groupContexts: '运行时上下文',
       contexts: '注入的快照项',
@@ -212,19 +225,22 @@ window.__ModuleLoader__.load({
       contextsNameSeparator: '、',
       contextsRuntimeRequiredHint: '运行时的提示词注册表声明这些项为必需（本插件的目录里没有）：{names}。它们由官方每个步骤强制补回，因此保持勾选且不可关闭。',
       contextsRegistryUnavailable: '未能读取运行时的提示词注册表，以上目录来自本插件内置的表，可能与当前 DSH 版本不一致（必需项可能显示得不准确）。',
-      officialPrefixes: '补充屏蔽提示词命名空间（前缀）',
-      officialPrefixesHint: '按冒号前的命名空间匹配，命中即当作官方提示词屏蔽。内置 {count} 个命名空间始终生效，这里只做追加：留空 = 只用内置默认；把某一项从框里删掉也不会让它失效。',
-      officialPrefixesExample: '填写案例：api 会屏蔽 api:docs、api:schema… 所有以 api: 开头的段；多个用逗号分隔，如 api, skill。',
-      officialNames: '补充屏蔽提示词命名段（完整名称）',
-      officialNamesHint: '按完整段名精确匹配，不做前缀展开——名字必须一模一样。用于没有命名空间的段，或想单独点名某一段。',
-      officialNamesExample: '填写案例：mcp-resource-servers 命中同名段；tool:bash 只屏蔽 bash 的指导段，不会连带 tool:read。',
-      officialKeep: '保留（不屏蔽）提示词命名段（完整名称）',
-      officialKeepHint: '按完整段名精确匹配；命中后即使它落在上面的命名空间里，也照样保留。只认完整名称，写前缀无效。',
-      officialKeepExample: '填写案例：tool:bash 会保住 bash 的指导段；想放过某个自定义段就填它自己的完整名字。',
-      officialRulesSectionHint: '这三栏只作用于「只屏蔽官方」的提示词过滤：工具、技能、运行时上下文都不受影响，另外两种注入方式也不读它们。内置的官方命名空间随插件版本固定，升级后如果发现某个官方段还在注入，把它冒号前的命名空间补进第一栏；反过来想放过某一段，就把完整段名写进第三栏。',
-      officialDefaultsList: '始终生效的内置项（三栏都在这之上追加）：命名空间 {prefixes}；段名 {names}。',
-      officialDroppedHint: '这些内置项即使从框里删掉也仍然生效：{names}。要放过其中某个具体段，请把它的完整段名写进「保留（不屏蔽）提示词命名段」。',
-      promptOfficialLeakHint: '以下段看起来属于官方命名空间，但不在屏蔽规则内，official-only 模式下仍会注入：{names}。可在该 preset 的 capability 行里用 officialSectionPrefixes 补上。',
+      officialPrefixes: '补充屏蔽提示词前缀',
+      officialPrefixesHint: '按普通前缀屏蔽：添加 api 会屏蔽所有以 api 开头的段（api:docs、api-schema…），添加 a:b 会屏蔽 a:b:c 等以 a:b 开头的段。不用写冒号结尾，也不要求写满冒号分隔的完整层级；只想精确命中某一段请用下一栏。内置 {count} 个前缀始终生效，这里只做追加，删掉某一项也不会关闭内置规则。',
+      officialPrefixesExample: '添加：输入后按回车、逗号或移出焦点；删除：点标签上的 × 或按退格。',
+      officialPrefixesPlaceholder: '输入前缀后按回车添加，如 api 或 a:b',
+      officialNames: '补充屏蔽提示词段名（完整名称）',
+      officialNamesHint: '按完整段名精确屏蔽，不做前缀展开——名字必须一模一样。适合没有冒号分层的段，或只想点名屏蔽某一段。',
+      officialNamesExample: '如 mcp-resource-servers 只命中同名段；tool:bash 只屏蔽 bash 的指导段，不会连带 tool:read。',
+      officialNamesPlaceholder: '输入完整段名后按回车添加，如 tool:bash',
+      officialKeep: '保留（不屏蔽）提示词段名（完整名称）',
+      officialKeepHint: '保留名单优先于上面的屏蔽规则：命中完整段名后，即使它落在被屏蔽的前缀范围内也照样保留。只认完整名称，填前缀无效。',
+      officialKeepExample: '如 tool:bash 会保住 bash 的指导段；想放过自己的某个段，就填它的完整名字。',
+      officialKeepPlaceholder: '输入要保留的完整段名，如 tool:bash',
+      officialRulesSectionHint: '这三栏只影响「自定义屏蔽（默认官方）」的人设注入：工具、技能、运行时上下文不受影响，另外两种注入方式也不读取它们。补充项与内置规则叠加，不会替代内置规则。',
+      officialDefaultsList: '内置规则（始终生效，与上面三栏叠加）：前缀 {prefixes}；段名 {names}。',
+      officialDroppedHint: '以下内置项不在上面的标签里，但仍然生效（这里是追加，不会替换内置规则）：{names}。要放过其中某个具体段，请把它的完整段名加进「保留（不屏蔽）提示词命名段」。',
+      tagRemove: '删除 {name}',
       contextsClearHint: '取消全部非必需勾选后，快照只剩必需项。',
       noContexts: '当前没有可勾选的快照上下文项。',
       copy: '复制',
@@ -265,6 +281,13 @@ window.__ModuleLoader__.load({
       inspectRunning: '读取中…',
       inspectAutoHint: '进入本页与配置改动后会自动重新读取。',
       inspectDraftPreview: '预览：按当前编辑内容计算，保存后才生效',
+      inspectSectionRules: '段规则：{prefixes} 个前缀 · {names} 个精确段名 · {keep} 个保留规则',
+      inspectBlockedSections: '屏蔽段 {count} 个',
+      inspectKeptSections: '保留段 {count} 个',
+      inspectSectionRulesHint: '段规则按上方三栏的当前标签计算（默认官方规则已计入），保存后才会改变运行时注入。',
+      inspectSectionRulesUnavailable: '未能读取运行时 section 列表，屏蔽/保留分区暂不可用；上面的规则计数仍然有效。',
+      inspectBlockedSectionsList: '屏蔽段（{count}）',
+      inspectKeptSectionsList: '保留段（{count}）',
       inspectSurface: '继承工具面 {count} 个',
       inspectTools: '可用工具 {count} 个',
       inspectBlocked: '被名单拒绝的工具 {count} 个',
@@ -341,10 +364,10 @@ window.__ModuleLoader__.load({
       instructionMode: 'Injection',
       modeAppend: 'Prepend',
       modeComplete: 'Replace',
-      modeOfficial: 'Official only',
+      modeCustomBlock: 'Custom blocking (DSH defaults)',
       modeAppendHint: 'Uses this text as the persona prefix (replacing the deployment persona) while keeping the rest of DSH\u2019s system prompt, such as tool guidance.',
       modeCompleteHint: 'Uses only this text, removing every other system-prompt section (including third-party contributions).',
-      modeOfficialHint: 'Uses this text as the persona while removing only DSH\u2019s own system prompt; third-party plugin and external MCP contributions stay.',
+      modeCustomBlockHint: 'Uses this text as the persona and filters sections with the three fields below: DSH\u2019s own sections are blocked by default, extra prefixes or exact names can be blocked, and specific sections can be kept; third-party plugin and external MCP contributions stay by default.',
       includeWorkspace: 'Include workspace',
       includeWorkspaceHint: 'Append the current session working directory to the end of the prompt; applies to Prepend, Replace, and Official only (on by default).',
       includeWorkspaceOn: 'Append the current session working directory',
@@ -361,19 +384,22 @@ window.__ModuleLoader__.load({
       contextsNameSeparator: ', ',
       contextsRuntimeRequiredHint: 'The live prompt registry marks these entries as required (they are not in this plugin’s catalog): {names}. DSH restores them every step, so they stay checked and cannot be turned off.',
       contextsRegistryUnavailable: 'The live prompt registry could not be read, so this catalog comes from the table shipped with this plugin and may not match the running DSH build (required rows can be wrong).',
-      officialPrefixes: 'Also block these prompt namespaces (prefix)',
-      officialPrefixesHint: 'Matches the namespace before the colon; a hit is treated as DSH’s own prompt. The {count} built-in namespaces always apply — this list is additive only: empty = built-ins alone, and deleting an entry does not switch it off.',
-      officialPrefixesExample: 'Example: api blocks api:docs, api:schema and every other api: section. Separate several with commas, e.g. api, skill.',
+      officialPrefixes: 'Also block these prompt prefixes',
+      officialPrefixesHint: 'Blocks by plain prefix: adding api blocks every section starting with api (api:docs, api-schema…), and a:b blocks a:b:c. No trailing colon is required and no namespace boundary is assumed; use the next field for an exact single section. The {count} built-in prefixes always apply; this list only adds to them.',
+      officialPrefixesExample: 'Add: type a value, then press Enter, a comma, or leave the field. Remove: click the × on a chip, or press Backspace.',
+      officialPrefixesPlaceholder: 'Type a prefix and press Enter, e.g. api or a:b',
       officialNames: 'Also block these prompt sections (exact name)',
-      officialNamesHint: 'Matches the whole section name exactly — no prefix expansion, the name must match character for character. For sections without a namespace, or to single one out.',
-      officialNamesExample: 'Example: mcp-resource-servers matches that section; tool:bash blocks only the bash guidance, leaving tool:read alone.',
+      officialNamesHint: 'Matches the whole section name exactly — no prefix expansion, the name must match character for character. Use it for sections without a namespace, or to single one out.',
+      officialNamesExample: 'mcp-resource-servers matches that one section; tool:bash blocks only the bash guidance, leaving tool:read alone.',
+      officialNamesPlaceholder: 'Type an exact section name and press Enter, e.g. tool:bash',
       officialKeep: 'Keep these prompt sections (exact name)',
-      officialKeepHint: 'Matches the whole section name exactly; a hit is kept even inside the namespaces above. Exact names only — a prefix does nothing here.',
-      officialKeepExample: 'Example: tool:bash keeps the bash guidance; give a section of your own its full name to keep it.',
-      officialRulesSectionHint: 'These three boxes only affect the “official-only” prompt filter: tools, skills and the runtime-context snapshot are untouched, and the other two injection modes never read them. The built-in namespaces are pinned to the plugin’s version — if an upgrade leaks an official section, add the namespace before its colon to the first box; to let one section through, write its full name in the third.',
-      officialDefaultsList: 'Always in force (all three boxes add to this): namespaces {prefixes}; names {names}.',
-      officialDroppedHint: 'These built-in entries still apply even after being removed from the box: {names}. To let one of them through, put its full section name in “Keep these prompt sections”.',
-      promptOfficialLeakHint: 'These sections look like DSH namespaces but are outside the filter, so official-only still injects them: {names}. Add them to the preset’s capability row via officialSectionPrefixes.',
+      officialKeepHint: 'Exemptions outrank the block rules above: a hit stays even inside a blocked namespace. Exact names only — a prefix does nothing here.',
+      officialKeepExample: 'tool:bash keeps the bash guidance; to keep one of your own sections, give its full name.',
+      officialKeepPlaceholder: 'Type an exact section name to keep, e.g. tool:bash',
+      officialRulesSectionHint: 'These three fields only affect the “custom-official” persona filter: tools, skills and the runtime-context snapshot are untouched, and the other two injection modes never read them. Entries add to the built-in rules and never replace them.',
+      officialDefaultsList: 'Built-in rules (always in force, added to the fields above): prefixes {prefixes}; names {names}.',
+      officialDroppedHint: 'These built-in entries are not in the chips above but still apply (the fields add to the built-in rules; they never replace them): {names}. To let one of them through, add its full section name to “Keep these prompt sections”.',
+      tagRemove: 'Remove {name}',
       contextsClearHint: 'Unchecking every optional row leaves only the required ones.',
       noContexts: 'No snapshot context contribution is available to choose from.',
       copy: 'Duplicate',
@@ -414,6 +440,13 @@ window.__ModuleLoader__.load({
       inspectRunning: 'Reading…',
       inspectAutoHint: 'Re-reads automatically on page entry and after every configuration change.',
       inspectDraftPreview: 'Preview: computed from the current edits; takes effect after saving',
+      inspectSectionRules: 'Section rules: {prefixes} prefixes · {names} exact names · {keep} keep rules',
+      inspectBlockedSections: 'Sections blocked: {count}',
+      inspectKeptSections: 'Sections kept: {count}',
+      inspectSectionRulesHint: 'Section rules use the chips above (DSH defaults included); only saving changes runtime injection.',
+      inspectSectionRulesUnavailable: 'The live section list could not be read, so the blocked/kept split is unavailable; the rule counts above still hold.',
+      inspectBlockedSectionsList: 'Sections blocked ({count})',
+      inspectKeptSectionsList: 'Sections kept ({count})',
       inspectSurface: 'Inherited tool surface: {count}',
       inspectTools: 'Usable tools: {count}',
       inspectBlocked: 'Tools refused by the list: {count}',
@@ -640,6 +673,161 @@ window.__ModuleLoader__.load({
         // A concrete case, visually set apart from the rule: "how do I fill
         // several of these?" is the question a bare rule cannot answer.
         props.example === undefined ? null : h('p', { className: 'aps-example' }, props.example),
+      )
+    }
+
+    /** Split a rule list typed with commas (either width), `、`, or newlines. */
+    function parseRuleList(raw) {
+      return [
+        ...new Set(
+          String(raw ?? '')
+            .split(/[,，、\n]/)
+            .map((entry) => entry.trim())
+            .filter((entry) => entry !== ''),
+        ),
+      ]
+    }
+
+    /**
+     * The value a prefix is compared by: the verbatim string.
+     *
+     * The field is a PLAIN PREFIX list, not a namespace list: `a:b` matches
+     * `a:b:c` (and anything else starting with `a:b`), and `api` matches
+     * `api:docs` as well as `api-extra`. Nothing is appended or truncated, so
+     * a chip shows exactly what will be compared; only surrounding whitespace
+     * is dropped.
+     */
+    function normalizePrefix(entry) {
+      return String(entry ?? '').trim()
+    }
+
+    /**
+     * Chip editor for the three `custom-official` rule lists.
+     *
+     * The value IS the parsed list the draft carries, so adding or removing a
+     * chip writes the array directly; there is no raw-text side state that
+     * could drift from the save payload (the old comma box kept one, and its
+     * trailing comma or half-typed namespace lived only in the input).
+     *
+     * Typing a separator commits the finished entries at once and keeps the
+     * half-typed tail in the box; Enter and blur commit the tail as well.
+     * Backspace on an empty box removes the last chip, and every chip has its
+     * own `×`. The remove button cancels mousedown so the input keeps focus —
+     * otherwise blur would commit pending text and the click would then compute
+     * its removal from the pre-commit list, silently dropping one of the edits.
+     */
+    function TagInput(props) {
+      const [text, setText] = useState('')
+      const inputRef = useRef(null)
+      // An IME's intermediate value must not be split on its punctuation: keep
+      // the raw composition in the box and parse it once composition ends.
+      const composing = useRef(false)
+      const values = Array.isArray(props.value) ? props.value : []
+      const keyOf = props.keyOf ?? ((entry) => entry)
+      const emit = (next) => {
+        const unchanged =
+          next.length === values.length && next.every((entry, index) => entry === values[index])
+        if (unchanged === false) props.onChange(next)
+      }
+      const append = (raw) => {
+        const seen = new Set(values.map(keyOf))
+        const next = [...values]
+        for (const entry of parseRuleList(raw)) {
+          const key = keyOf(entry)
+          if (seen.has(key)) continue
+          seen.add(key)
+          next.push(entry)
+        }
+        emit(next)
+      }
+      const commit = (raw) => {
+        append(raw)
+        setText('')
+      }
+      const removeAt = (index) => emit(values.filter((_, position) => position !== index))
+      const handleText = (raw) => {
+        if (composing.current) {
+          setText(String(raw ?? ''))
+          return
+        }
+        // Everything before the last separator is a finished entry; whatever
+        // follows it is still being typed.
+        const pieces = String(raw ?? '').split(/[,，、\n]/)
+        const tail = pieces.pop() ?? ''
+        if (pieces.length > 0) append(pieces.join(','))
+        setText(tail.replace(/^\s+/, ''))
+      }
+      const onKeyDown = (event) => {
+        // An IME confirming a candidate must not submit the half-converted
+        // text, so composing Enter/Backspace are ignored.
+        if (event?.nativeEvent?.isComposing || event?.keyCode === 229) return
+        if (event.key === 'Enter') {
+          event.preventDefault?.()
+          commit(text)
+          return
+        }
+        if (event.key === 'Escape') {
+          setText('')
+          return
+        }
+        if (event.key === 'Backspace' && text === '' && values.length > 0) {
+          event.preventDefault?.()
+          removeAt(values.length - 1)
+        }
+      }
+      return h(
+        'div',
+        { className: 'aps-tagEditor', onClick: () => inputRef.current?.focus() },
+        values.map((entry, index) =>
+          h(
+            'span',
+            { key: `${String(entry)}\u0000${index}`, className: 'aps-tag' },
+            h('span', { className: 'aps-tagText' }, String(entry)),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'aps-tagRemove',
+                'aria-label': format(props.t('tagRemove'), { name: String(entry) }),
+                onMouseDown: (event) => event.preventDefault(),
+                onClick: (event) => {
+                  event.stopPropagation?.()
+                  removeAt(index)
+                },
+              },
+              '\u00d7',
+            ),
+          ),
+        ),
+        h('input', {
+          ref: inputRef,
+          className: 'aps-tagInput',
+          type: 'text',
+          value: text,
+          placeholder: props.placeholder,
+          'aria-label': props.ariaLabel,
+          autoComplete: 'off',
+          spellCheck: false,
+          onChange: (event) => handleText(event.target.value),
+          onCompositionStart: () => {
+            composing.current = true
+          },
+          onCompositionEnd: (event) => {
+            composing.current = false
+            handleText(event.target.value)
+          },
+          onPaste: (event) => {
+            // A pasted list normally has no trailing separator, so the default
+            // caret insertion would leave every item but the last in the box
+            // until Enter. Paste-with-separators commits the whole list.
+            const pasted = event?.clipboardData?.getData?.('text') ?? ''
+            if (/[,，、\n]/.test(pasted) === false) return
+            event.preventDefault?.()
+            commit(pasted)
+          },
+          onKeyDown,
+          onBlur: () => commit(text),
+        }),
       )
     }
 
@@ -919,6 +1107,12 @@ window.__ModuleLoader__.load({
     function InspectPanel(props) {
       const t = props.t
       const view = props.view
+      // The custom-blocking filter is part of the runtime view: the Host
+      // classifies live sections against the DRAFT rule set, so the panel must
+      // show that partition next to the tool and context counts. Append/replace
+      // never filter sections, so the block is silent there. An answer without
+      // `sectionFilter` (an older Host) renders nothing rather than claiming 0.
+      const sectionRules = props.customBlock === true ? view?.sectionFilter : undefined
       return h(
         'div',
         { className: 'aps-inspect' },
@@ -998,6 +1192,63 @@ window.__ModuleLoader__.load({
                     ? h('p', { className: 'aps-hint' }, t('inspectSkillsOff'))
                     : null,
                 ),
+                // The `custom-official` rule partition, shown with the same fact
+                // chips as the tool and context counts. The rule counts are the
+                // MERGED set (built-ins + the draft chips), which is what the
+                // filter will really run with after a save.
+                sectionRules === undefined
+                  ? null
+                  : h(
+                      'div',
+                      { className: 'aps-inspectCount' },
+                      h(
+                        'span',
+                        { className: 'aps-fact' },
+                        format(t('inspectSectionRules'), {
+                          prefixes: sectionRules.rules?.prefixes ?? 0,
+                          names: sectionRules.rules?.names ?? 0,
+                          keep: sectionRules.rules?.keep ?? 0,
+                        }),
+                      ),
+                      sectionRules.available === true
+                        ? h(
+                            'span',
+                            { className: 'aps-fact' },
+                            format(t('inspectBlockedSections'), { count: sectionRules.blocked ?? 0 }),
+                          )
+                        : null,
+                      sectionRules.available === true
+                        ? h(
+                            'span',
+                            { className: 'aps-fact' },
+                            format(t('inspectKeptSections'), { count: sectionRules.kept ?? 0 }),
+                          )
+                        : null,
+                    ),
+                sectionRules === undefined
+                  ? null
+                  : h(
+                      'p',
+                      { className: 'aps-hint' },
+                      sectionRules.available === true
+                        ? t('inspectSectionRulesHint')
+                        : t('inspectSectionRulesUnavailable'),
+                    ),
+                // The names behind the counts, in the same scrollable list as
+                // tools and contexts: a count alone cannot tell an operator
+                // whether the section they meant to block actually moved.
+                sectionRules === undefined
+                  ? null
+                  : h(NameList, {
+                      title: t('inspectBlockedSectionsList'),
+                      names: sectionRules.blockedList,
+                    }),
+                sectionRules === undefined
+                  ? null
+                  : h(NameList, {
+                      title: t('inspectKeptSectionsList'),
+                      names: sectionRules.keptList,
+                    }),
                 (view.listedUnavailable ?? []).length > 0
                   ? h(
                       'div',
@@ -1528,61 +1779,39 @@ window.__ModuleLoader__.load({
       const inspectSeq = useRef(0)
       const firstInspect = useRef(true)
       const patch = (change) => props.onChange({ ...draft, ...change })
-      // --- the `official-only` rule set -----------------------------------
-      // Three optional lists on the preset. An EMPTY or ABSENT field means
-      // "the built-in namespaces", so the boxes PREFILL from the Host's
-      // `officialSectionDefaults` instead of showing blanks — a blank box would
-      // hide what the filter really does. `ruleText` keeps the raw typing
-      // (trailing comma, half-typed namespace) for the input only; the PARSED
-      // array is what the draft carries and what the Host stores. Clearing a
-      // box writes `[]`, which the Host reads as "no override" rather than
-      // inheriting yesterday's value.
-      const ruleDefaults = meta.officialSectionDefaults ?? {}
-      // Empty stays EMPTY: an absent list means "the built-in namespaces" and
-      // the box shows nothing, so what an operator typed is exactly what the
-      // field holds. The defaults are stated in the note below the boxes
-      // instead of being pre-filled into them — a box that looks edited when
-      // it is not is worse than a short read of the note.
-      const ruleTextOf = (value) => (Array.isArray(value) && value.length > 0 ? value.join(', ') : '')
-      const ruleText = draft.ruleText ?? {
-        prefixes: ruleTextOf(draft.officialSectionPrefixes),
-        names: ruleTextOf(draft.officialSectionNames),
-        keep: ruleTextOf(draft.officialSectionKeep),
-      }
-      const parseRuleList = (raw) => [
-        ...new Set(
-          String(raw ?? '')
-            .split(/[,，\n]/)
-            .map((entry) => entry.trim())
-            .filter((entry) => entry !== ''),
-        ),
-      ]
-      const ruleFieldPatch = {
-        prefixes: 'officialSectionPrefixes',
-        names: 'officialSectionNames',
-        keep: 'officialSectionKeep',
-      }
-      const setRuleText = (key, raw) =>
-        patch({
-          ruleText: { ...ruleText, [key]: raw },
-          [ruleFieldPatch[key]]: parseRuleList(raw),
-        })
+      // --- the `custom-official` rule set -----------------------------------
+      // Three optional lists on the preset, edited as chips. An EMPTY or ABSENT
+      // field means "the built-in namespaces", so an untouched field shows no
+      // chips and the built-in lists are stated in the note below the fields —
+      // pre-filling them would make an unedited field look edited. A chip
+      // writes the PARSED array the Host stores; removing every chip writes
+      // `[]`, which the Host reads as "no override", never as "inherit the
+      // previous value".
+      const ruleDefaults = meta.sectionRuleDefaults ?? {}
+      const ruleValuesOf = (field) => (Array.isArray(draft[field]) ? draft[field] : [])
       // The rule is ADDITIVE: the built-in namespaces are merged in by the Host
-      // no matter what these boxes say, so deleting one from a box cannot
-      // switch it off. Say it out loud the moment a box stops listing one —
-      // otherwise "I removed ui: and it still gets filtered" looks like a bug.
-      // An EMPTY box is not "I dropped everything" — it is "use the built-in
-      // list", which is exactly what the Host does. Only a box that carries
-      // entries can be missing one, so the notice is silent while it is blank.
-      const normalizePrefix = (entry) => (entry.endsWith(':') ? entry : `${entry}:`)
-      const typedPrefixes = parseRuleList(ruleText.prefixes)
-      const typedNames = parseRuleList(ruleText.names)
-      const typedPrefixSet = new Set(typedPrefixes.map(normalizePrefix))
+      // no matter what these fields say, so removing one chip cannot switch it
+      // off. Say it out loud the moment a field stops listing one — otherwise
+      // "I removed ui: and it still gets filtered" looks like a bug.
+      // An EMPTY field is not "I dropped everything" — it is "use the built-in
+      // list", which is exactly what the Host does. Only a field that carries
+      // entries can be missing one, so the notice is silent while it is empty.
+      const typedPrefixes = ruleValuesOf('sectionRulePrefixes')
+      const typedNames = ruleValuesOf('sectionRuleNames')
       const typedNameSet = new Set(typedNames)
+      // Prefixes are PLAIN prefixes, so a typed prefix COVERS a built-in entry
+      // when the built-in starts with it: `deployment` covers the built-in
+      // `deployment:` (and anything else with that prefix). Comparing verbatim
+      // would wrongly report the built-in as missing.
+      const coversDefaultPrefix = (prefix) =>
+        typedPrefixes.some((typed) => {
+          const value = normalizePrefix(typed)
+          return value !== '' && normalizePrefix(prefix).startsWith(value)
+        })
       const droppedDefaults = [
         ...(typedPrefixes.length === 0
           ? []
-          : (ruleDefaults.prefixes ?? []).filter((prefix) => typedPrefixSet.has(normalizePrefix(prefix)) === false)),
+          : (ruleDefaults.prefixes ?? []).filter((prefix) => coversDefaultPrefix(prefix) === false)),
         ...(typedNames.length === 0
           ? []
           : (ruleDefaults.names ?? []).filter((name) => typedNameSet.has(name) === false)),
@@ -1643,6 +1872,11 @@ window.__ModuleLoader__.load({
           // field: an unmanaged preset derives "everything", which is exactly
           // what it injects, so the panel's kept/blocked split matches the
           // runtime instead of falling back to the last save.
+          // The `custom-official` rules ride along for the same reason: the Host
+          // re-classifies live sections against THESE chips, so the leak
+          // warning follows every add/remove instead of the last save. An
+          // emptied field is sent as `[]` and the Host falls back to the
+          // built-ins, exactly as saving would.
           const value = await callApi('inspect', {
             id: draft.id,
             config: {
@@ -1650,6 +1884,9 @@ window.__ModuleLoader__.load({
               skills: draft.skills ?? [],
               contexts: contextState.checked,
               requiredSuppressed: contextState.forced,
+              sectionRulePrefixes: ruleValuesOf('sectionRulePrefixes'),
+              sectionRuleNames: ruleValuesOf('sectionRuleNames'),
+              sectionRuleKeep: ruleValuesOf('sectionRuleKeep'),
             },
           })
           if (seq !== inspectSeq.current) return
@@ -1669,7 +1906,7 @@ window.__ModuleLoader__.load({
       // hint. The snapshot part of the key uses the DERIVED checked names, the
       // same list `runInspect` sends, so an unmanaged → managed transition and
       // every individual toggle both re-read exactly once.
-      const inspectKey = `${draft.id}\u0000${selection.mode}\u0000${selection.names.join(',')}\u0000${(draft.skills ?? []).join(',')}\u0000${checkedContexts.join(',')}\u0000${contextState.forced.join(',')}\u0000${(draft.officialSectionPrefixes ?? []).join(',')}\u0000${(draft.officialSectionNames ?? []).join(',')}\u0000${(draft.officialSectionKeep ?? []).join(',')}`
+      const inspectKey = `${draft.id}\u0000${selection.mode}\u0000${selection.names.join(',')}\u0000${(draft.skills ?? []).join(',')}\u0000${checkedContexts.join(',')}\u0000${contextState.forced.join(',')}\u0000${(draft.sectionRulePrefixes ?? []).join(',')}\u0000${(draft.sectionRuleNames ?? []).join(',')}\u0000${(draft.sectionRuleKeep ?? []).join(',')}`
       useEffect(() => {
         if (draft.id === '') {
           setView(null)
@@ -1756,8 +1993,8 @@ window.__ModuleLoader__.load({
                 hint:
                   draft.instructionMode === 'complete'
                     ? t('modeCompleteHint')
-                    : draft.instructionMode === 'official-only'
-                      ? t('modeOfficialHint')
+                    : draft.instructionMode === 'custom-official'
+                      ? t('modeCustomBlockHint')
                       : t('modeAppendHint'),
               },
               h(Segmented, {
@@ -1766,15 +2003,15 @@ window.__ModuleLoader__.load({
                 options: [
                   { value: 'append', label: t('modeAppend') },
                   { value: 'complete', label: t('modeComplete') },
-                  { value: 'official-only', label: t('modeOfficial') },
+                  { value: 'custom-official', label: t('modeCustomBlock') },
                 ],
                 onChange: (value) => patch({ instructionMode: value }),
               }),
             ),
-            // The rule set only means anything in `official-only` mode, so its
-            // three boxes appear exactly then — the same place the mode is
-            // chosen, using the same Field scaffold as every other row.
-            ...(draft.instructionMode === 'official-only'
+            // The rule set only means anything in `custom-official` mode, so its
+            // three chip fields appear exactly then — the same place the mode
+            // is chosen, using the same Field scaffold as every other row.
+            ...(draft.instructionMode === 'custom-official'
               ? [
                   h(
                     Field,
@@ -1784,11 +2021,13 @@ window.__ModuleLoader__.load({
                       hint: format(t('officialPrefixesHint'), { count: (ruleDefaults.prefixes ?? []).length }),
                       example: t('officialPrefixesExample'),
                     },
-                    h('input', {
-                      className: 'aps-input',
-                      type: 'text',
-                      value: ruleText.prefixes,
-                      onChange: (event) => setRuleText('prefixes', event.target.value),
+                    h(TagInput, {
+                      t,
+                      value: ruleValuesOf('sectionRulePrefixes'),
+                      keyOf: normalizePrefix,
+                      onChange: (next) => patch({ sectionRulePrefixes: next }),
+                      placeholder: t('officialPrefixesPlaceholder'),
+                      ariaLabel: t('officialPrefixes'),
                     }),
                   ),
                   h(
@@ -1799,11 +2038,12 @@ window.__ModuleLoader__.load({
                       hint: t('officialNamesHint'),
                       example: t('officialNamesExample'),
                     },
-                    h('input', {
-                      className: 'aps-input',
-                      type: 'text',
-                      value: ruleText.names,
-                      onChange: (event) => setRuleText('names', event.target.value),
+                    h(TagInput, {
+                      t,
+                      value: ruleValuesOf('sectionRuleNames'),
+                      onChange: (next) => patch({ sectionRuleNames: next }),
+                      placeholder: t('officialNamesPlaceholder'),
+                      ariaLabel: t('officialNames'),
                     }),
                   ),
                   h(
@@ -1814,11 +2054,12 @@ window.__ModuleLoader__.load({
                       hint: t('officialKeepHint'),
                       example: t('officialKeepExample'),
                     },
-                    h('input', {
-                      className: 'aps-input',
-                      type: 'text',
-                      value: ruleText.keep,
-                      onChange: (event) => setRuleText('keep', event.target.value),
+                    h(TagInput, {
+                      t,
+                      value: ruleValuesOf('sectionRuleKeep'),
+                      onChange: (next) => patch({ sectionRuleKeep: next }),
+                      placeholder: t('officialKeepPlaceholder'),
+                      ariaLabel: t('officialKeep'),
                     }),
                   ),
                   ...(droppedDefaults.length === 0
@@ -1837,7 +2078,7 @@ window.__ModuleLoader__.load({
                     { key: 'official-rules-note', className: 'aps-hint' },
                     t('officialRulesSectionHint'),
                   ),
-                  // The boxes no longer prefill, so the built-in lists are
+                  // The chip fields do not prefill, so the built-in lists are
                   // stated here instead: an operator can still see what the
                   // filter does by default without the page pretending the
                   // field has been edited.
@@ -1851,23 +2092,6 @@ window.__ModuleLoader__.load({
                   ),
                 ]
               : []),
-            // The filter names namespaces, and the list of them ships with the
-            // plugin — so a newer DSH build can add a section that survives
-            // `official-only` without anyone noticing. The Host re-answers this
-            // per DRAFT (see `inspect`), so the warning follows the boxes above
-            // instead of describing the last save.
-            draft.instructionMode === 'official-only' &&
-            ((view?.officialFilter ?? meta.officialFilter)?.suspect ?? []).length > 0
-              ? h(
-                  'p',
-                  { className: 'aps-hint' },
-                  format(t('promptOfficialLeakHint'), {
-                    names: ((view?.officialFilter ?? meta.officialFilter)?.suspect ?? []).join(
-                      t('contextsNameSeparator'),
-                    ),
-                  }),
-                )
-              : null,
             h(
               Field,
               { label: t('includeWorkspace'), hint: t('includeWorkspaceHint') },
@@ -2080,6 +2304,7 @@ window.__ModuleLoader__.load({
             view,
             busy: inspecting,
             unsaved: draft.id === '',
+            customBlock: draft.instructionMode === 'custom-official',
             onRun: runInspect,
           }),
         ),

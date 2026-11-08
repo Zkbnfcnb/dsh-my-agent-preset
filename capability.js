@@ -37,7 +37,7 @@ const PERSONA_SUFFIX_SECTION = 'deployment:persona-suffix'
 /**
  * Prompt-section namespaces owned by the DSH deployment itself.
  *
- * `official-only` mode removes sections in these namespaces and keeps every
+ * `custom-official` mode removes sections in these namespaces and keeps every
  * other section, so third-party plugins keep injecting their prompts. The
  * names follow the sections DSH's bundled rows register (see
  * `@deepseek-ai/dsh-system-prompt`'s placement table): the deployment persona,
@@ -68,23 +68,21 @@ const OFFICIAL_SECTION_NAMES = new Set(['mcp-resource-servers'])
  * The bundled rows are the only authority on which namespaces DSH itself
  * registers, and this table is a COPY of it taken at build time — a new DSH
  * build that adds a namespace (or a deployment that renames one) would
- * otherwise leave `official-only` silently leaking that section. Letting a
+ * otherwise leave `custom-official` silently leaking that section. Letting a
  * deployment APPEND prefixes/names makes the rule follow the build from the
- * profile, and `officialSectionKeep` names the escape hatch in the other
+ * profile, and `sectionRuleKeep` names the escape hatch in the other
  * direction: a third-party row that happens to sit in a reserved namespace
  * can opt out and keep injecting.
  *
  * This is configuration, not detection: the prompt registry stores no owner
  * provenance, so no runtime API can answer "did DSH register this name?".
- * The companion `classifySections()` export is the closest honest signal —
- * it flags reserved-looking namespaces this build does not know, so a
- * leaking section is visible in the page instead of silently injected.
+ * The companion `classifySections()` export is the honest signal available:
+ * it reports exactly which live sections the configured rules remove and which
+ * survive, so the page lists both instead of guessing at ownership.
  */
-const OFFICIAL_PREFIX_CONFIG = 'officialSectionPrefixes'
-const OFFICIAL_NAME_CONFIG = 'officialSectionNames'
-const OFFICIAL_KEEP_CONFIG = 'officialSectionKeep'
-/** Namespace tokens that make an unknown section LOOK like a DSH row. */
-const OFFICIAL_LOOKALIKE = ['dsh', 'deepseek', 'harness', 'deployment']
+const SECTION_RULE_PREFIX_CONFIG = 'sectionRulePrefixes'
+const SECTION_RULE_NAME_CONFIG = 'sectionRuleNames'
+const SECTION_RULE_KEEP_CONFIG = 'sectionRuleKeep'
 /** Provider name published into the preset's skill layer. */
 const SKILL_PROVIDER = 'dsh-my-agent-preset'
 /**
@@ -129,25 +127,25 @@ function configList(value) {
 /**
  * The official-section rules this row runs with.
  *
- * Defaults are the namespaces DSH's bundled rows register. Config APPENDS to
- * them (`officialSectionPrefixes`, `officialSectionNames`) and may exempt
- * exact names (`officialSectionKeep`) — never replaces, so a deployment
+ * Defaults are the namespace prefixes DSH's bundled rows register. Config
+ * APPENDS to them (`sectionRulePrefixes`, `sectionRuleNames`) and may
+ * exempt exact names (`sectionRuleKeep`) — never replaces, so a deployment
  * cannot accidentally switch the filter off by supplying one extra entry.
+ * Prefixes are plain strings (`a:b` matches `a:b:c`), not namespace tokens.
  * @param config - the row's config object.
  * @returns the effective prefix list, exact-name set, and keep set.
  */
-export function resolveOfficialRules(config) {
+export function resolveSectionRules(config) {
   const settings = config ?? {}
-  const extraPrefixes = configList(settings[OFFICIAL_PREFIX_CONFIG])
-  const extraNames = configList(settings[OFFICIAL_NAME_CONFIG])
-  const keep = new Set(configList(settings[OFFICIAL_KEEP_CONFIG]))
-  // A prefix is only meaningful when it ends in the separator that turns it
-  // into a namespace; normalising here keeps `harness` and `harness:` aligned.
-  const prefixes = [...new Set(
-    [...OFFICIAL_SECTION_PREFIXES, ...extraPrefixes].map((prefix) =>
-      prefix.endsWith(':') ? prefix : `${prefix}:`,
-    ),
-  )]
+  const extraPrefixes = configList(settings[SECTION_RULE_PREFIX_CONFIG])
+  const extraNames = configList(settings[SECTION_RULE_NAME_CONFIG])
+  const keep = new Set(configList(settings[SECTION_RULE_KEEP_CONFIG]))
+  // A prefix is a PLAIN string prefix, not a namespace token: `a:b` matches
+  // `a:b:c` — and anything else starting with `a:b` — because that is exactly
+  // what the operator asked for. Nothing is appended or stripped; the entries
+  // are compared verbatim by `startsWith` below. The built-in entries keep
+  // their trailing colon, so their shipped behavior is unchanged.
+  const prefixes = [...new Set([...OFFICIAL_SECTION_PREFIXES, ...extraPrefixes])]
   const names = new Set([...OFFICIAL_SECTION_NAMES, ...extraNames])
   return { prefixes, names, keep }
 }
@@ -158,58 +156,51 @@ export function resolveOfficialRules(config) {
  * Detection is by the reserved namespaces DSH's bundled plugins register in.
  * Third-party plugins use their own names, and `mcp:<server>` carries
  * instructions supplied by an external MCP server rather than by DSH, so both
- * survive `official-only` mode.
+ * survive `custom-official` mode.
  * @param name - the section name from an assembly.
- * @param rules - the effective rules (see {@link resolveOfficialRules}); the
+ * @param rules - the effective rules (see {@link resolveSectionRules}); the
  *   defaults are used when omitted.
  * @returns true when the section is DSH-owned and not exempted.
  */
 function isOfficialSection(name, rules) {
   if (typeof name !== 'string' || name === '') return false
-  const effective = rules ?? resolveOfficialRules(undefined)
-  // An exemption outranks the namespaces: it names a row that lives in one
-  // but is not DSH's to remove.
+  const effective = rules ?? resolveSectionRules(undefined)
+  // An exemption outranks the prefixes: it names a row that lives in a
+  // removed namespace but is not DSH's to remove.
   if (effective.keep.has(name)) return false
   if (effective.names.has(name)) return true
   return effective.prefixes.some((prefix) => name.startsWith(prefix))
 }
 
 /**
- * Sort section names into what `official-only` would remove, what it would
- * keep because the deployment exempted it, and what it would keep as
- * third-party content.
+ * Sort section names into what the rule set would remove and what it would
+ * keep. A keep-list hit is kept just like an unmatched third-party section:
+ * both mean "this section survives", so there is only one kept bucket.
  *
- * The third bucket carries `suspect` names: names in a namespace this build
- * does NOT know but that reads like a DSH row (`dsh:…`, `deepseek:…`,
- * `harness:…`). Those are exactly the sections a newer DSH build could have
- * added, so the page can warn "this looks official and would leak" instead of
- * presenting a silently incomplete filter.
+ * There is deliberately no "looks official" bucket either: the registry
+ * carries no ownership provenance, and a third-party section in a DSH-looking
+ * namespace is still third-party. The page lists both sides with their names,
+ * so an operator widens a prefix when a section they expected to be filtered
+ * is in the kept list — no guess is presented as a leak.
  * @param names - every section name an assembly can carry.
- * @param config - the row's config object (same keys as {@link resolveOfficialRules}).
- * @returns `{ official, kept, thirdParty, suspect }` name arrays.
+ * @param config - the row's config object (same keys as {@link resolveSectionRules}).
+ * @returns `{ blocked, kept }` name arrays: blocked by the rules, kept
+ *   otherwise (including keep-list hits).
  */
 export function classifySections(names, config) {
-  const rules = resolveOfficialRules(config)
-  const official = []
+  const rules = resolveSectionRules(config)
+  const blocked = []
   const kept = []
-  const thirdParty = []
-  const suspect = []
   for (const raw of Array.isArray(names) ? names : []) {
     const name = text(raw)
     if (name === '') continue
-    if (rules.keep.has(name)) {
+    if (rules.keep.has(name) || isOfficialSection(name, rules) === false) {
       kept.push(name)
       continue
     }
-    if (isOfficialSection(name, rules)) {
-      official.push(name)
-      continue
-    }
-    thirdParty.push(name)
-    const namespace = name.includes(':') ? name.slice(0, name.indexOf(':')) : ''
-    if (OFFICIAL_LOOKALIKE.some((token) => namespace.toLowerCase().includes(token))) suspect.push(name)
+    blocked.push(name)
   }
-  return { official, kept, thirdParty, suspect }
+  return { blocked, kept }
 }
 
 /** Normalize the page's `[{ name, path }]` skill selection. */
@@ -324,17 +315,17 @@ export function apply(ctx, config) {
   // --- persona text -------------------------------------------------------
   const instructions = text(settings.instructions)
   const instructionMode =
-    settings.instructionMode === 'complete' || settings.instructionMode === 'official-only'
+    settings.instructionMode === 'complete' || settings.instructionMode === 'custom-official'
       ? settings.instructionMode
       : 'append'
   const complete = instructionMode === 'complete'
-  // `official-only` keeps third-party prompt contributions but suppresses every
+  // `custom-official` keeps third-party prompt contributions but suppresses every
   // section DSH itself owns. The preset's own persona section is exempt (it is
   // registered below), so it replaces the deployment persona as usual.
-  const officialOnly = instructionMode === 'official-only'
+  const customBlock = instructionMode === 'custom-official'
   // Resolved once per row: the filter runs on every assembly, and the rules
   // are pure configuration.
-  const officialRules = resolveOfficialRules(settings)
+  const resolvedRules = resolveSectionRules(settings)
   const suffix = text(settings.instructionsSuffix)
   // The workspace line follows EVERY injection mode now (the page presents it
   // as one prompt option, not a `complete`-only one). The cwd is a per-turn
@@ -353,9 +344,9 @@ export function apply(ctx, config) {
       }
     : instructions
   // A preset with no authored text still registers the section in
-  // `official-only` mode: the workspace line may stand on its own, and the
+  // `custom-official` mode: the workspace line may stand on its own, and the
   // section is the name the official-prompt filter must recognise as ours.
-  const personaRegistered = instructions !== '' || officialOnly
+  const personaRegistered = instructions !== '' || customBlock
   if (personaRegistered) {
     ctx.inject(['systemPrompt'], (scoped) => {
       scoped.effect(
@@ -380,7 +371,7 @@ export function apply(ctx, config) {
           'my-agent-preset: persona suffix',
         )
       }
-      if (officialOnly) {
+      if (customBlock) {
         // `prepend` puts this listener first in the waterfall, and calling
         // `next()` lets every downstream listener (including the Host's tool
         // filter on the Agent scope) finish before the final section list is
@@ -400,7 +391,7 @@ export function apply(ctx, config) {
                   const name = typeof section?.name === 'string' ? section.name : ''
                   if (name === PERSONA_PREFIX_SECTION) return personaRegistered
                   if (name === PERSONA_SUFFIX_SECTION) return suffixRegistered
-                  return isOfficialSection(name, officialRules) === false
+                  return isOfficialSection(name, resolvedRules) === false
                 })
                 if (sections.length === assembly.sections.length) return assembly
                 return { ...assembly, sections }
