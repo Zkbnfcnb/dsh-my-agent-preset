@@ -253,6 +253,9 @@ export function mountStudio({
   const removed = []
   /** Every `{ endpoint, body }` the page POSTed, in order. */
   const calls = []
+  /** Every anchor download the page triggered, and the blobs behind them. */
+  const downloads = []
+  const blobs = []
 
   // The bundle grabs the hooks off `React` once, at load; delegate to whatever
   // mount is live so the same wrappers work in every scenario.
@@ -276,6 +279,20 @@ export function mountStudio({
   }
   globalThis.document = {
     createElement: (tag) => {
+      if (tag === 'a') {
+        const el = {
+          href: '',
+          download: '',
+          style: {},
+          dataset: {},
+          setAttribute() {},
+          remove() {},
+          click() {
+            downloads.push({ href: el.href, download: el.download })
+          },
+        }
+        return el
+      }
       if (tag !== 'textarea') return { style: {}, dataset: {}, textContent: '', setAttribute() {}, remove() {} }
       const el = {
         value: '',
@@ -300,6 +317,12 @@ export function mountStudio({
     body: { appendChild() {} },
     head: { appendChild() {} },
   }
+  // Give the local-export path an inspectable blob URL instead of a real one.
+  URL.createObjectURL = (blob) => {
+    blobs.push(blob)
+    return `blob:test-${blobs.length}`
+  }
+  URL.revokeObjectURL = () => {}
   const nav = {
     clipboard: asyncClipboard ? { writeText: async (text) => writes.push(text) } : undefined,
   }
@@ -374,5 +397,5 @@ export function mountStudio({
 
   const root = mountRoot(StudioSection, {})
   live = root.react
-  return { root, writes, textareas, removed, calls, zh, en, copy: (key) => zh?.[key] ?? key }
+  return { root, writes, textareas, removed, calls, downloads, blobs, zh, en, copy: (key) => zh?.[key] ?? key }
 }

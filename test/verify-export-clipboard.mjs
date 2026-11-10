@@ -1,15 +1,16 @@
 /**
- * Regression: the preset list header must offer 「导出预设列表」 next to
- * 「+ 新建预设模式」, and clicking it must put the whole roster on the clipboard
- * as a JSON array of `{ id, name, description }` — in list order, enabled or
- * not, and nothing beyond those three fields.
+ * Regression: the preset list header must offer 「+ 新建预设模式」,
+ * 「导出预设列表」 and 「导入预设列表」 in one action row under the intro, and
+ * the export dialog must copy the roster's BASIC info as a JSON array of
+ * `{ id, name, description }` — in list order, enabled or not, and nothing
+ * beyond those three fields — plus offer a full-info local JSON download.
  *
  * The page machinery (browser stubs, the React shim, the dialog stub, the
  * recorded Host API) lives in `_studio-harness.mjs` and is shared with the
  * copy/snapshot UI regression. Export is not a one-click clipboard write: the
  * click opens a selection dialog whose rows are all checked by default, and
- * the copy happens on its primary footer button — `runExport` drives both
- * steps.
+ * the copy happens on the 「复制基础信息到剪贴板」 footer button — `runExport`
+ * drives both steps.
  *
  * Run: node test/verify-export-clipboard.mjs
  */
@@ -74,14 +75,18 @@ const exportButtonIn = (tree) =>
   findNodes(tree, (n) => n.type === 'button' && textOf(n) === '导出预设列表')[0]
 
 /**
- * The dialog's 「复制到剪贴板」 button, matched by label plus a live `onClick`
+ * The dialog's 「复制基础信息到剪贴板」 button, matched by label plus a live `onClick`
  * rather than by `type === 'button'`: a component's rendered type is the
  * component function under this shim.
  * @param tree - a rendered tree.
  * @returns the button node, or undefined when the dialog is not open.
  */
 const copyButtonIn = (tree) =>
-  findNodes(tree, (n) => textOf(n) === '复制到剪贴板' && typeof n.props?.onClick === 'function')[0]
+  findNodes(tree, (n) => textOf(n) === '复制基础信息到剪贴板' && typeof n.props?.onClick === 'function')[0]
+
+/** The dialog's 「导出到本地」 button. */
+const downloadButtonIn = (tree) =>
+  findNodes(tree, (n) => textOf(n) === '导出到本地' && typeof n.props?.onClick === 'function')[0]
 
 /**
  * Drive the whole export: open the dialog, then press its copy button.
@@ -93,7 +98,7 @@ async function runExport(root, tree) {
   await exportButtonIn(tree).props.onClick()
   const open = await root.flush()
   const button = copyButtonIn(open)
-  if (button === undefined) throw new Error('导出弹窗没有出现「复制到剪贴板」按钮')
+  if (button === undefined) throw new Error('导出弹窗没有出现「复制基础信息到剪贴板」按钮')
   await button.props.onClick()
   return root.flush()
 }
@@ -107,25 +112,36 @@ const exportButton = () => exportButtonIn(tree)
 
 check('出现「导出预设列表」按钮', labels().includes('导出预设列表'), `按钮: ${labels().join(' / ')}`)
 check('「+ 新建预设模式」仍然保留', labels().includes('+ 新建预设模式'), `按钮: ${labels().join(' / ')}`)
+check('出现「导入预设列表」按钮', labels().includes('导入预设列表'), `按钮: ${labels().join(' / ')}`)
 check(
-  '导出按钮排在新建按钮左边',
-  labels().indexOf('导出预设列表') < labels().indexOf('+ 新建预设模式'),
+  '三个按钮的排列为新建、导出、导入',
+  labels().indexOf('+ 新建预设模式') < labels().indexOf('导出预设列表') &&
+    labels().indexOf('导出预设列表') < labels().indexOf('导入预设列表'),
   labels().join(' / '),
 )
 const headerActionGroups = () =>
   findNodes(tree, (n) => {
-    if (classNameOf(n) !== 'aps-groupHeadActions') return false
+    if (classNameOf(n) !== 'aps-listActions') return false
     const names = findNodes(n, (node) => node.type === 'button').map(textOf)
-    return names.includes('导出预设列表') && names.includes('+ 新建预设模式')
+    return (
+      names.includes('导出预设列表') &&
+      names.includes('导入预设列表') &&
+      names.includes('+ 新建预设模式')
+    )
   })
-check('两个按钮在同一个动作组里（同一行）', headerActionGroups().length === 1, JSON.stringify(headerActionGroups().length))
+check('三个按钮在同一个动作组里（同一行）', headerActionGroups().length === 1, JSON.stringify(headerActionGroups().length))
+check(
+  '动作组位于简介小字下方、列表标题上方',
+  findNodes(tree, (n) => classNameOf(n) === 'aps-listActions').length === 1,
+  JSON.stringify(findNodes(tree, (n) => classNameOf(n) === 'aps-listActions').length),
+)
 check('导出按钮用次要样式 aps-btn', classNameOf(exportButton()) === 'aps-btn', `class=${classNameOf(exportButton())}`)
 check('导出按钮是 type=button', exportButton()?.props?.type === 'button')
 check('数据就绪后可点击', exportButton()?.props?.disabled === false, `disabled=${String(exportButton()?.props?.disabled)}`)
 
 console.log('# 文案：中英对齐')
 {
-  const keys = ['exportList', 'exportHint', 'exportEmpty', 'exportFailed']
+  const keys = ['exportList', 'exportCopy', 'exportLocal', 'exportHint', 'downloadHint', 'exportEmpty', 'exportFailed', 'importList', 'importConfirm', 'importInvalid', 'importHint']
   const zhKeys = Object.keys(studio.zh ?? {})
   const enKeys = Object.keys(studio.en ?? {})
   check('新增文案在 zh / en 都存在', keys.every((k) => studio.zh?.[k] && studio.en?.[k]), keys.map((k) => `${k}: ${studio.zh?.[k] ?? '-'} | ${studio.en?.[k] ?? '-'}`).join('  '))
@@ -140,6 +156,7 @@ console.log('# 文案：中英对齐')
     keys.map((k) => `${k}:{${String(studio.zh?.[k]).match(/\{\w+\}/g)}} vs {${String(studio.en?.[k]).match(/\{\w+\}/g)}}`).join(' '),
   )
   check('按钮文案不依赖未定义的键', studio.copy('exportList') === '导出预设列表', studio.copy('exportList'))
+check('复制按钮文案已改为「复制基础信息到剪贴板」', studio.copy('exportCopy') === '复制基础信息到剪贴板', studio.copy('exportCopy'))
 }
 
 console.log('# 点击导出 → 弹窗 → 剪贴板内容')

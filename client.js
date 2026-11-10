@@ -36,6 +36,8 @@ window.__ModuleLoader__.load({
     const CSS = `.aps-section{max-width:720px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px}
 .aps-title{margin:0;font-size:18px;font-weight:600;line-height:1.4}
 .aps-intro{color:var(--dsw-alias-label-tertiary);margin:0;font-size:13px;line-height:1.6}
+.aps-listActions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.aps-fileInput{display:none}
 .aps-error{color:var(--dsw-alias-state-error-primary);margin:0;font-size:12px;line-height:1.5}
 .aps-notice{color:var(--dsw-alias-state-success-primary);margin:0;font-size:12px;line-height:1.5}
 .aps-group{display:flex;flex-direction:column;gap:10px}
@@ -43,7 +45,6 @@ window.__ModuleLoader__.load({
 .aps-groupHead{letter-spacing:.06em;text-transform:uppercase;color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;font-weight:600}
 .aps-groupHeadRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .aps-groupHeadRow .aps-hint{flex:none;white-space:nowrap}
-.aps-groupHeadActions{display:flex;align-items:center;gap:8px;flex:none}
 .aps-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px;margin:0;padding:0;list-style:none}
 .aps-card{border:.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-1));display:flex;flex-direction:column;transition:border-color .16s,background .16s}
 .aps-card:hover{background:var(--dsw-alias-interactive-bg-hover)}
@@ -184,12 +185,25 @@ window.__ModuleLoader__.load({
       create: '新建预设模式',
       createTitle: '新建预设模式',
       exportList: '导出预设列表',
+      importList: '导入预设列表',
       exportSelectTitle: '选择要导出的预设',
-      exportSelectHint: '勾选要导出的预设，复制为 JSON 到剪贴板。',
-      exportCopy: '复制到剪贴板',
-      exportHint: '已复制 {count} 个预设（id / name / description）到剪贴板。',
+      exportSelectHint: '勾选要导出的预设，可复制基础信息到剪贴板，或导出完整预设信息到本地 JSON 文件。',
+      exportCopy: '复制基础信息',
+      exportLocal: '导出到本地',
+      exportHint: '已复制 {count} 个预设的基础信息（id / name / description）到剪贴板。',
+      downloadHint: '已导出 {count} 个预设到本地 JSON 文件。',
+      downloadFailed: '导出失败：{message}',
       exportEmpty: '还没有可导出的预设。',
       exportFailed: '复制失败：{message}',
+      importSelectTitle: '选择要导入的预设',
+      importSelectHint: '勾选要导入的预设；确认后会追加到列表末尾，与已有预设同名的条目会自动重命名为「原名（导入 N）」后导入。',
+      importConfirm: '确认导入',
+      importing: '导入中…',
+      importInvalid: '文件格式不正确：请选择由「导出到本地」生成的 JSON 文件。',
+      importFailed: '导入失败：{message}',
+      importHint: '已导入 {added} 个预设，其中 {renamed} 个同名预设已自动重命名。',
+      importHintPlain: '已导入 {count} 个预设。',
+      importEmpty: '文件中没有可导入的预设。',
       editTitle: '编辑预设模式',
       loading: '加载中…',
       empty: '还没有自定义预设模式',
@@ -343,12 +357,25 @@ window.__ModuleLoader__.load({
       create: 'New preset',
       createTitle: 'New preset',
       exportList: 'Export preset list',
+      importList: 'Import preset list',
       exportSelectTitle: 'Choose presets to export',
-      exportSelectHint: 'Check the presets to export; they are copied to the clipboard as JSON.',
-      exportCopy: 'Copy to clipboard',
-      exportHint: 'Copied {count} presets (id / name / description) to the clipboard.',
+      exportSelectHint: 'Check the presets to export; copy their basic info to the clipboard, or save their full info as a local JSON file.',
+      exportCopy: 'Copy basic info',
+      exportLocal: 'Export to local file',
+      exportHint: 'Copied basic info (id / name / description) of {count} presets to the clipboard.',
+      downloadHint: 'Exported {count} presets to a local JSON file.',
+      downloadFailed: 'Export failed: {message}',
       exportEmpty: 'No preset to export yet.',
       exportFailed: 'Copy failed: {message}',
+      importSelectTitle: 'Choose presets to import',
+      importSelectHint: 'Check the presets to import; they are appended to the end of the list, and presets whose name already exists are renamed to “name (import N)”.',
+      importConfirm: 'Import selected',
+      importing: 'Importing…',
+      importInvalid: 'Unsupported file format: choose a JSON file produced by “Export to local file”.',
+      importFailed: 'Import failed: {message}',
+      importHint: 'Imported {added} presets; {renamed} with an existing name were renamed automatically.',
+      importHintPlain: 'Imported {count} presets.',
+      importEmpty: 'The file contains no importable preset.',
       editTitle: 'Edit preset',
       loading: 'Loading…',
       empty: 'No custom preset yet',
@@ -538,6 +565,184 @@ window.__ModuleLoader__.load({
       }))
     }
 
+    /** Trim a JSON value into a string list, dropping non-strings. */
+    function asStringList(value) {
+      return Array.isArray(value)
+        ? value.filter((item) => typeof item === 'string').map((item) => item.trim()).filter((item) => item !== '')
+        : []
+    }
+
+    /** The name key used to de-duplicate imports (trimmed, case-insensitive). */
+    function presetNameKey(name) {
+      return String(name ?? '').trim().toLowerCase()
+    }
+
+    /**
+     * Project one preset onto the portable FULL info shape the local export
+     * writes. Runtime identity and placement (`id`, `order`, timestamps,
+     * `status`) stay behind: the Host mints a fresh id on import and appends
+     * the preset, so carrying them would only invite collisions.
+     * @param preset - a Host preset row.
+     * @returns the portable object accepted by the import parser.
+     */
+    function toPortablePreset(preset) {
+      const source = preset !== null && typeof preset === 'object' ? preset : {}
+      const portable = {
+        name: String(source.name ?? ''),
+        description: String(source.description ?? ''),
+        instructions: String(source.instructions ?? ''),
+        instructionMode: ['append', 'complete', 'custom-official'].includes(source.instructionMode)
+          ? source.instructionMode
+          : 'append',
+        includeWorkspace: source.includeWorkspace !== false,
+        skills: asStringList(source.skills),
+        tools: {
+          mode: ['all', 'allow', 'deny'].includes(source.tools?.mode) ? source.tools.mode : 'all',
+          names: asStringList(source.tools?.names),
+        },
+        enabled: source.enabled !== false,
+      }
+      // PRESENT means the array is the whole truth, so an empty array must be
+      // exported as-is (it suppresses every optional context). The same rule
+      // applies to the advanced force-suppress list.
+      if (Array.isArray(source.contexts)) portable.contexts = asStringList(source.contexts)
+      if (Array.isArray(source.requiredSuppressed)) portable.requiredSuppressed = asStringList(source.requiredSuppressed)
+      for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
+        const list = asStringList(source[key])
+        if (list.length > 0) portable[key] = list
+      }
+      return portable
+    }
+
+    /**
+     * Rows for the export dialog: the portable roster fields plus the full
+     * payload the local file writes.
+     * @param presets - the Host's preset rows.
+     * @returns an array of `{ key, id, name, description, payload }`.
+     */
+    function toExportRows(presets) {
+      return (Array.isArray(presets) ? presets : []).map((preset) => ({
+        key: String(preset?.id ?? ''),
+        id: String(preset?.id ?? ''),
+        name: String(preset?.name ?? ''),
+        description: String(preset?.description ?? ''),
+        payload: toPortablePreset(preset),
+      }))
+    }
+
+    /**
+     * Normalize one imported object. Only known, portable fields survive;
+     * `id`/`order`/`status` are deliberately ignored so every import becomes a
+     * new preset at the end of the list.
+     * @param input - one JSON entry.
+     * @returns the save payload, or undefined when it carries no usable name.
+     */
+    function normalizeImportedPreset(input) {
+      if (input === null || typeof input !== 'object' || Array.isArray(input)) return undefined
+      const name = typeof input.name === 'string' ? input.name.trim() : ''
+      if (name === '') return undefined
+      const preset = {
+        name,
+        description: typeof input.description === 'string' ? input.description : '',
+        instructions: typeof input.instructions === 'string' ? input.instructions : '',
+        instructionMode: ['append', 'complete', 'custom-official'].includes(input.instructionMode)
+          ? input.instructionMode
+          : 'append',
+        includeWorkspace: input.includeWorkspace !== false,
+        skills: asStringList(input.skills),
+        tools: {
+          mode: ['all', 'allow', 'deny'].includes(input.tools?.mode) ? input.tools.mode : 'all',
+          names: asStringList(input.tools?.names),
+        },
+        enabled: input.enabled !== false,
+      }
+      if (Array.isArray(input.contexts)) preset.contexts = asStringList(input.contexts)
+      if (Array.isArray(input.requiredSuppressed)) preset.requiredSuppressed = asStringList(input.requiredSuppressed)
+      for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
+        const list = asStringList(input[key])
+        if (list.length > 0) preset[key] = list
+      }
+      return preset
+    }
+
+    /**
+     * Parse an uploaded file into picker rows. A JSON array is the expected
+     * shape; an object with a `presets` array is tolerated so a hand-wrapped
+     * export still imports. Malformed JSON, a non-array shape, or a file with
+     * no usable preset yields `undefined` — the caller alerts the user.
+     * @param text - the file's UTF-8 text.
+     * @returns rows `{ key, name, description, payload }`, or undefined.
+     */
+    function parseImportedPresets(text) {
+      let parsed
+      try {
+        // A UTF-8 BOM is common in Windows-authored files and JSON.parse
+        // rejects it, so strip it before parsing.
+        parsed = JSON.parse(String(text ?? '').replace(/^\uFEFF/, ''))
+      } catch {
+        return undefined
+      }
+      const list = Array.isArray(parsed)
+        ? parsed
+        : parsed !== null && typeof parsed === 'object' && Array.isArray(parsed.presets)
+          ? parsed.presets
+          : undefined
+      if (list === undefined) return undefined
+      const rows = []
+      list.forEach((entry, index) => {
+        const payload = normalizeImportedPreset(entry)
+        if (payload === undefined) return
+        // Duplicates inside the file are kept: the page renames every name
+        // that is already taken, so two same-name entries both import as
+        // `原名（导入 1）` / `原名（导入 2）` instead of one being dropped.
+        rows.push({
+          key: `import-${index}`,
+          name: payload.name,
+          description: payload.description,
+          payload,
+        })
+      })
+      return rows.length === 0 ? undefined : rows
+    }
+
+    /** Read a picked file as text, with a FileReader fallback for old WebViews. */
+    async function readFileText(file) {
+      if (file !== null && typeof file?.text === 'function') return await file.text()
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result ?? ''))
+        reader.onerror = () => reject(reader.error ?? new Error('FileReader'))
+        reader.readAsText(file)
+      })
+    }
+
+    /** A timestamped, filesystem-safe name for the local export. */
+    function exportFileName() {
+      const now = new Date()
+      const pad = (value) => String(value).padStart(2, '0')
+      const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+      return `agent-presets-${stamp}.json`
+    }
+
+    /** Download one JSON payload through a throwaway anchor. */
+    function downloadJsonFile(fileName, value) {
+      const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName
+      anchor.style.display = 'none'
+      document.body.appendChild(anchor)
+      try {
+        anchor.click()
+      } finally {
+        anchor.remove()
+        // Revoke on the next task: some browsers cancel a download whose URL
+        // disappears in the same task as the click.
+        setTimeout(() => URL.revokeObjectURL(url), 0)
+      }
+    }
+
     /** Bound dictionary resolver; `apply` rebinds it to the locale service. */
     let T = (key) => zh[key] ?? key
 
@@ -646,15 +851,25 @@ window.__ModuleLoader__.load({
      * @param taken - a set-like predicate over existing names.
      * @returns the next free display name.
      */
-    function copyName(source, taken) {
+    function suffixedName(source, suffix, taken) {
       const base = String(source?.name ?? '').trim()
       let index = 1
-      let candidate = `${base}（复制 ${index}）`
+      let candidate = `${base}（${suffix} ${index}）`
       while (taken(candidate)) {
         index += 1
-        candidate = `${base}（复制 ${index}）`
+        candidate = `${base}（${suffix} ${index}）`
       }
       return candidate
+    }
+
+    /** The duplicate action's suffix (`（复制 N）`). */
+    function copyName(source, taken) {
+      return suffixedName(source, '复制', taken)
+    }
+
+    /** The import action's suffix (`（导入 N）`), used only on name conflicts. */
+    function importName(source, taken) {
+      return suffixedName(source, '导入', taken)
     }
 
     /** One label + control + hint row, matching the host settings form. */
@@ -1410,52 +1625,59 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * The export dialog: check the presets to copy, with select-all controls.
+     * The shared picker dialog behind export and import: check rows, run one
+     * footer action per configured button.
      *
      * Its chrome is the shell's own `Modal`/`Button` primitives — the same
      * dialog surface every other DSH dialog uses — while the rows reuse the
-     * page's own list styling, so nothing here invents a look. Copying runs
-     * here; a failure stays in the dialog, a success closes it and lets the
-     * page show the notice.
-     * @param props - the roster rows, the locale resolver, and the close/done hooks.
+     * page's own list styling, so both flows look like one component. An
+     * action runs here; a failure stays in the dialog, a success lets the
+     * action's `done` hook close it and let the page show the notice.
+     * @param props - `{ t, title, hint, empty, rows, actions, onClose }`; each
+     *   action is `{ key, label, busyLabel?, primary?, failText, run, done? }`.
      * @returns the open dialog element.
      */
-    function ExportDialog(props) {
+    function PresetSelectDialog(props) {
       const t = props.t
       const rows = props.rows
-      // Everything is checked by default: the old behaviour exported all of
-      // them, and one deselect is cheaper than re-picking each one.
-      const [selected, setSelected] = useState(() => new Set(rows.map((row) => row.id)))
+      // Everything is checked by default: a deselection is cheaper than
+      // re-picking each row for the common "all of them" case.
+      const [selected, setSelected] = useState(() => new Set(rows.map((row) => row.key)))
       const [busy, setBusy] = useState(false)
+      const [running, setRunning] = useState('')
       const [error, setError] = useState('')
-      // A copy in flight owns the dialog: it cannot be closed under itself.
+      // An action in flight owns the dialog: it cannot be closed under itself.
       const close = () => {
         if (busy === false) props.onClose()
       }
-      const shownIds = rows.map((row) => row.id)
-      const chosen = rows.filter((row) => selected.has(row.id))
-      const toggle = (id) => {
+      const shownKeys = rows.map((row) => row.key)
+      const chosen = rows.filter((row) => selected.has(row.key))
+      const toggle = (key) => {
         const next = new Set(selected)
-        if (next.has(id)) next.delete(id)
-        else next.add(id)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
         setSelected(next)
       }
-      const copy = async () => {
+      const trigger = async (action) => {
         setBusy(true)
+        setRunning(action.key)
         setError('')
+        let result
         try {
-          await copyText(JSON.stringify(chosen, null, 2))
+          result = await action.run(chosen)
         } catch (err) {
-          setError(format(t('exportFailed'), { message: String(err?.message ?? err) }))
+          setError(format(action.failText, { message: String(err?.message ?? err) }))
           setBusy(false)
+          setRunning('')
           return
         }
         setBusy(false)
-        props.onDone(chosen.length)
+        setRunning('')
+        if (typeof action.done === 'function') action.done(result, chosen)
       }
       const body =
         rows.length === 0
-          ? h('p', { className: 'aps-hint' }, t('exportEmpty'))
+          ? h('p', { className: 'aps-hint' }, props.empty)
           : h(
               'div',
               null,
@@ -1467,7 +1689,7 @@ window.__ModuleLoader__.load({
                 { className: 'aps-inlineActions' },
                 h(
                   'button',
-                  { type: 'button', className: 'aps-linkButton', disabled: busy, onClick: () => setSelected(new Set(shownIds)) },
+                  { type: 'button', className: 'aps-linkButton', disabled: busy, onClick: () => setSelected(new Set(shownKeys)) },
                   t('selectAll'),
                 ),
                 h(
@@ -1486,13 +1708,13 @@ window.__ModuleLoader__.load({
                   rows.map((row) =>
                     h(
                       'label',
-                      { key: row.id, className: 'aps-row' },
-                      h('input', { type: 'checkbox', checked: selected.has(row.id), disabled: busy, onChange: () => toggle(row.id) }),
+                      { key: row.key, className: 'aps-row' },
+                      h('input', { type: 'checkbox', checked: selected.has(row.key), disabled: busy, onChange: () => toggle(row.key) }),
                       h(
                         'span',
                         { className: 'aps-rowBody' },
                         h('span', { className: 'aps-rowName' }, row.name),
-                        h('span', { className: 'aps-rowMeta' }, row.description !== '' ? row.description : row.id),
+                        h('span', { className: 'aps-rowMeta' }, row.description !== '' ? row.description : (row.id ?? '')),
                       ),
                     ),
                   ),
@@ -1506,17 +1728,94 @@ window.__ModuleLoader__.load({
           open: true,
           onClose: close,
           closeLabel: t('close'),
-          title: t('exportSelectTitle'),
-          description: t('exportSelectHint'),
+          title: props.title,
+          description: props.hint,
           footer: h(
             React.Fragment,
             null,
             h(UI.Button, { variant: 'outline', disabled: busy, onClick: close }, t('cancel')),
-            h(UI.Button, { variant: 'primary', disabled: busy || chosen.length === 0, onClick: copy }, t('exportCopy')),
+            (props.actions ?? []).map((action) =>
+              h(
+                UI.Button,
+                {
+                  key: action.key,
+                  variant: action.primary === true ? 'primary' : 'outline',
+                  disabled: busy || chosen.length === 0,
+                  onClick: () => trigger(action),
+                },
+                running === action.key && action.busyLabel ? action.busyLabel : action.label,
+              ),
+            ),
           ),
         },
         body,
       )
+    }
+
+    /**
+     * The export dialog: copy basic roster info, or download the full preset
+     * info of the checked rows as one JSON file.
+     * @param props - the roster rows plus close/done hooks.
+     * @returns the open dialog element.
+     */
+    function ExportDialog(props) {
+      const t = props.t
+      const actions = [
+        {
+          key: 'copy',
+          label: t('exportCopy'),
+          primary: true,
+          failText: t('exportFailed'),
+          run: (chosen) => copyText(JSON.stringify(toExportRoster(chosen), null, 2)),
+          done: (_result, chosen) => props.onDone(chosen.length),
+        },
+        {
+          key: 'download',
+          label: t('exportLocal'),
+          failText: t('downloadFailed'),
+          run: (chosen) => downloadJsonFile(exportFileName(), chosen.map((row) => row.payload)),
+          done: (_result, chosen) => props.onDownloaded(chosen.length),
+        },
+      ]
+      return h(PresetSelectDialog, {
+        t,
+        title: t('exportSelectTitle'),
+        hint: t('exportSelectHint'),
+        empty: t('exportEmpty'),
+        rows: props.rows,
+        actions,
+        onClose: props.onClose,
+      })
+    }
+
+    /**
+     * The import dialog: the same picker as export, but its primary action
+     * appends the checked presets to the end of the stored list.
+     * @param props - the imported rows plus close/done hooks.
+     * @returns the open dialog element.
+     */
+    function ImportDialog(props) {
+      const t = props.t
+      const actions = [
+        {
+          key: 'import',
+          label: t('importConfirm'),
+          busyLabel: t('importing'),
+          primary: true,
+          failText: t('importFailed'),
+          run: (chosen) => props.onImport(chosen),
+          done: (result) => props.onDone(result),
+        },
+      ]
+      return h(PresetSelectDialog, {
+        t,
+        title: t('importSelectTitle'),
+        hint: t('importSelectHint'),
+        empty: t('importEmpty'),
+        rows: props.rows,
+        actions,
+        onClose: props.onClose,
+      })
     }
 
     /**
@@ -2337,6 +2636,8 @@ window.__ModuleLoader__.load({
       const [draft, setDraft] = useState(null)
       const [confirming, setConfirming] = useState(null)
       const [exporting, setExporting] = useState(false)
+      const [importing, setImporting] = useState(null)
+      const importInputRef = useRef(null)
       const [busy, setBusy] = useState(false)
       const [error, setError] = useState('')
       const [notice, setNotice] = useState('')
@@ -2466,6 +2767,93 @@ window.__ModuleLoader__.load({
         setExporting(false)
         setNotice(format(t('exportHint'), { count }))
       }
+      /** The export dialog wrote a local file; close it and report the count. */
+      const exportDownloaded = (count) => {
+        setExporting(false)
+        setNotice(format(t('downloadHint'), { count }))
+      }
+      /**
+       * Read the picked file and open the import picker. An unreadable or
+       * malformed file leaves the page untouched and alerts the user, per the
+       * "wrong file format" contract; valid presets are checked by default in
+       * the same dialog export uses.
+       */
+      const pickImportFile = async (event) => {
+        const reportInvalid = () => {
+          if (typeof window.alert === 'function') window.alert(t('importInvalid'))
+          // A host that suppresses modal alerts still gets a visible reason.
+          else setError(t('importInvalid'))
+        }
+        const file = event?.target?.files?.[0]
+        if (file !== null && file !== undefined) {
+          try {
+            const rows = parseImportedPresets(await readFileText(file))
+            if (rows === undefined) {
+              reportInvalid()
+            } else {
+              setError('')
+              setNotice('')
+              setImporting(rows)
+            }
+          } catch {
+            reportInvalid()
+          }
+        }
+        // Clear the value so picking the SAME file again still fires a change.
+        if (event?.target !== null && event?.target !== undefined) event.target.value = ''
+      }
+      /**
+       * Append the checked imports to the stored list. Names already present
+       * (trimmed, case-insensitive) are renamed to `原名（导入 N）`, and the
+       * Host mints fresh ids; each save carries a running `order` so the new
+       * cards land at the end in the picker's order. `finally` refreshes even
+       * after a mid-way failure so the page never shows a list the Host no
+       * longer has.
+       */
+      const importSelected = async (rows) => {
+        // Conflict lookup is name-based (trimmed, case-insensitive) and covers
+        // every stored preset, disabled ones included. A conflict is no longer
+        // a skip: the preset imports under `原名（导入 N）`, with N scanning
+        // the stored names AND the names assigned earlier in this same batch.
+        const taken = new Set(state.presets.map((preset) => presetNameKey(preset.name)))
+        const orders = state.presets
+          .map((preset) => Number(preset.order))
+          .filter((order) => Number.isFinite(order))
+        const baseOrder = orders.length > 0 ? Math.max(...orders) + 1 : 0
+        let added = 0
+        let renamed = 0
+        try {
+          for (const row of rows) {
+            let name = row.name
+            if (taken.has(presetNameKey(name))) {
+              name = importName({ name }, (candidate) => taken.has(presetNameKey(candidate)))
+              renamed += 1
+            }
+            await callApi('save', {
+              ...row.payload,
+              id: '',
+              name,
+              order: baseOrder + added,
+            })
+            taken.add(presetNameKey(name))
+            added += 1
+          }
+        } finally {
+          await refresh()
+        }
+        return { added, renamed }
+      }
+      /** The import dialog finished; close it and report added/renamed counts. */
+      const importDone = (result) => {
+        setImporting(null)
+        const added = result?.added ?? 0
+        const renamed = result?.renamed ?? 0
+        setNotice(
+          renamed > 0
+            ? format(t('importHint'), { added, renamed })
+            : format(t('importHintPlain'), { count: added }),
+        )
+      }
       if (draft !== null) {
         return h(PresetEditor, {
           t,
@@ -2487,46 +2875,63 @@ window.__ModuleLoader__.load({
         { className: 'aps-section' },
         h('h2', { className: 'aps-title' }, t('title')),
         h('p', { className: 'aps-intro' }, t('description')),
+        // The three list-level actions live under the intro line (not in the
+        // group heading) so they fit on one row without squeezing the label.
+        h(
+          'div',
+          { className: 'aps-listActions' },
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'aps-btn aps-btnPrimary',
+              disabled: busy,
+              onClick: () => {
+                setError('')
+                setNotice('')
+                setDraft(blankPreset())
+              },
+            },
+            `+ ${t('create')}`,
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'aps-btn',
+              disabled: busy || state.loading,
+              onClick: () => {
+                setError('')
+                setNotice('')
+                setExporting(true)
+              },
+            },
+            t('exportList'),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'aps-btn',
+              disabled: busy || state.loading,
+              onClick: () => importInputRef.current?.click(),
+            },
+            t('importList'),
+          ),
+          h('input', {
+            ref: importInputRef,
+            className: 'aps-fileInput',
+            type: 'file',
+            accept: '.json,application/json',
+            tabIndex: -1,
+            'aria-hidden': 'true',
+            onChange: pickImportFile,
+          }),
+        ),
         error ? h('p', { className: 'aps-error' }, error) : null,
         notice ? h('p', { className: 'aps-notice' }, notice) : null,
         state.meta?.registryAvailable === false ? h('p', { className: 'aps-warn' }, t('registryMissing')) : null,
-        h(
-          'div',
-          { className: 'aps-groupHeadRow' },
-          h('h3', { className: 'aps-groupHead' }, t('nav')),
-          h(
-            'div',
-            { className: 'aps-groupHeadActions' },
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'aps-btn',
-                disabled: busy || state.loading,
-                onClick: () => {
-                  setError('')
-                  setNotice('')
-                  setExporting(true)
-                },
-              },
-              t('exportList'),
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'aps-btn aps-btnPrimary',
-                disabled: busy,
-                onClick: () => {
-                  setError('')
-                  setNotice('')
-                  setDraft(blankPreset())
-                },
-              },
-              `+ ${t('create')}`,
-            ),
-          ),
-        ),
+        h('h3', { className: 'aps-groupHead' }, t('nav')),
         state.loading
           ? h('p', { className: 'aps-hint' }, t('loading'))
           : presets.length === 0
@@ -2570,9 +2975,19 @@ window.__ModuleLoader__.load({
         exporting
           ? h(ExportDialog, {
               t,
-              rows: toExportRoster(presets),
+              rows: toExportRows(presets),
               onClose: () => setExporting(false),
               onDone: exportDone,
+              onDownloaded: exportDownloaded,
+            })
+          : null,
+        importing !== null
+          ? h(ImportDialog, {
+              t,
+              rows: importing,
+              onClose: () => setImporting(null),
+              onImport: importSelected,
+              onDone: importDone,
             })
           : null,
       )
