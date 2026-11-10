@@ -25,16 +25,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { classifySections, resolveSectionRules } from './capability.js'
-
-/**
- * The rule set a preset inherits when it stores no `custom-official` override.
- *
- * The page PREFILLS its three rule inputs from this (an empty array or an
- * absent field means "the built-in namespaces", and showing an empty box would
- * hide what the filter will actually do). Computed once: it is pure config.
- */
-const OFFICIAL_SECTION_DEFAULTS = resolveSectionRules(undefined)
+import { PERSONA_SECTION_NAMES, resolveSectionSelection } from './capability.js'
 
 /** Settings page API prefix; the Client half fetches these exact paths. */
 const API_PREFIX = '/api/dsh-my-agent-preset'
@@ -194,7 +185,7 @@ function agentScopeDead(agent) {
 
 /** Normalize one preset's prompt-injection mode. */
 function normalizeInstructionMode(value) {
-  return value === 'complete' || value === 'custom-official' ? value : 'append'
+  return value === 'complete' || value === 'custom' ? value : 'append'
 }
 
 /**
@@ -202,7 +193,7 @@ function normalizeInstructionMode(value) {
  *
  * The snapshot the model sees is `joinContextSections(assembly.contexts)`: a
  * `contexts` field, SEPARATE from `sections`. Neither `complete: true` nor the
- * `custom-official` filter touches it, so today the snapshot injects in full no
+ * custom section filter touches it, so today the snapshot injects in full no
  * matter which injection mode a preset picks. `CONTEXT_CATALOG` mirrors every
  * `systemPrompt.context()` registration in the bundled rows, with the exact
  * `name` each one uses, its `CONTEXT_ORDERS` sort key, and whether it is
@@ -281,9 +272,6 @@ const REQUIRED_CONTEXT_NAMES = new Set(
   CONTEXT_CATALOG.filter((entry) => entry.required === true).map((entry) => entry.name),
 )
 
-/** Non-required context names a fresh preset starts with (everything checked). */
-const DEFAULT_CONTEXT_NAMES = CONTEXT_CATALOG.map((entry) => entry.name)
-
 /** Catalog sort key per name, so a shadow re-registers at the official place. */
 const CONTEXT_ORDERS = new Map(CONTEXT_CATALOG.map((entry) => [entry.name, entry.order]))
 
@@ -338,10 +326,11 @@ function readContextRegistry(ctx, scope) {
 /**
  * Every prompt-section name the registry knows through one scope.
  *
- * Used only for diagnostics: `custom-official` decides by name, so the page can
- * compare the sections that actually exist against the namespaces this build
- * recognizes and show which ones a newer DSH may have added. Returns
- * undefined when the registry cannot be read (same probe as above).
+ * Used by the page's section catalog and by the self-check report: the
+ * checklist selects exact names, so the editor must list the sections the
+ * RUNNING build actually carries. Returns undefined when the registry cannot
+ * be read (the same probe as above), which the report presents as unavailable
+ * instead of claiming an empty surface.
  * @param ctx - the Host plugin context.
  * @param scope - a scope key, or undefined for the global view.
  * @returns the section names, or undefined.
@@ -413,23 +402,34 @@ function normalizeContexts(value) {
 }
 
 /**
- * The three optional `custom-official` rule fields, lifted from stored input.
+ * Normalize one stored SECTION keep list.
  *
- * They are stored verbatim (normalised to string lists) and passed straight
- * into the capability row's config, which is where `resolveSectionRules()`
- * reads them. A field is only written when it is a non-empty array: an absent
- * key means "use the built-in prefixes", which is what every preset saved
- * before this feature must keep doing.
- * @param input - the stored preset object.
- * @returns an object with only the fields that carry a value.
+ * ABSENT (not an array) means this preset does not manage sections: the
+ * assembled prompt is left untouched, which is what the page shows as
+ * "everything checked". PRESENT means the array is the whole truth — a section
+ * outside it is removed, except the preset's own persona sections (see
+ * `PERSONA_SECTION_NAMES`).
+ * @param value - the stored `sections` field.
+ * @returns the deduplicated name list, or undefined when unmanaged.
  */
-function sectionRuleFields(input) {
-  const out = {}
-  for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
-    const list = Array.isArray(input?.[key]) ? stringList(input[key]) : []
-    if (list.length > 0) out[key] = list
-  }
-  return out
+function normalizeSections(value) {
+  return Array.isArray(value) ? [...new Set(stringList(value))] : undefined
+}
+
+/**
+ * Normalize the ADVANCED force-suppress list for persona sections.
+ *
+ * Those two sections carry the prompt text the user authored, so the runtime
+ * keeps them even when the checklist omits them. The escape hatch is offered
+ * only for those exact names: any other section is already removed by leaving
+ * it unchecked, so storing such a name would misreport what happened.
+ * @param value - the stored `sectionsSuppressed` field.
+ * @returns the deduplicated protected names, or undefined when empty.
+ */
+function normalizeSectionSuppression(value) {
+  if (!Array.isArray(value)) return undefined
+  const names = stringList(value).filter((name) => PERSONA_SECTION_NAMES.includes(name))
+  return names.length > 0 ? [...new Set(names)] : undefined
 }
 
 /** Normalize one stored preset, merging the legacy call-level block list. */
@@ -455,14 +455,15 @@ export function normalizePreset(input) {
     instructions: typeof input.instructions === 'string' ? input.instructions : '',
     instructionMode: normalizeInstructionMode(input.instructionMode),
     // The workspace line is a prompt-wide option: it applies in `append`,
-    // `complete`, and `custom-official` mode. Defaults to on when the field is
+    // `complete`, and `custom` mode. Defaults to on when the field is
     // absent so existing presets gain the behavior.
     includeWorkspace: input.includeWorkspace !== false,
-    // The `custom-official` rule set, carried ON the preset: a deployment that
-    // meets a newer DSH namespace can widen the filter from the data file (and,
-    // later, the page) without waiting for a release. Absent stays absent so
-    // existing presets keep running on the built-in namespaces.
-    ...sectionRuleFields(input),
+    // The section checklist, carried ON the preset: an absent array means the
+    // preset manages nothing (every section injects), while an array is the
+    // strict keep list the runtime filter applies. The ADVANCED force list is
+    // the only thing that can remove the preset's own persona sections.
+    sections: normalizeSections(input.sections),
+    sectionsSuppressed: normalizeSectionSuppression(input.sectionsSuppressed),
     // Absent (not an array) = this preset does not manage the runtime-context
     // snapshot at all; present = the array is the strict whitelist of
     // suppressible context names (required names are always injected anyway,
@@ -619,11 +620,10 @@ export function toDefinition(preset, baselineRows = [], skillIndex = new Map()) 
       includeWorkspace: preset.includeWorkspace !== false,
       skills: selectedSkills,
       tools: toolSelection,
-      // Widened prefixes travel with the preset, so the filter a stored
-      // preset runs is the one its own data file describes.
-      ...(Array.isArray(preset.sectionRulePrefixes) ? { sectionRulePrefixes: preset.sectionRulePrefixes } : {}),
-      ...(Array.isArray(preset.sectionRuleNames) ? { sectionRuleNames: preset.sectionRuleNames } : {}),
-      ...(Array.isArray(preset.sectionRuleKeep) ? { sectionRuleKeep: preset.sectionRuleKeep } : {}),
+      // The checklist travels with the preset, so the filter a stored preset
+      // runs is exactly what its own data file describes.
+      ...(Array.isArray(preset.sections) ? { sections: preset.sections } : {}),
+      ...(Array.isArray(preset.sectionsSuppressed) ? { sectionsSuppressed: preset.sectionsSuppressed } : {}),
     },
   })
   for (const row of Array.isArray(baselineRows) ? baselineRows : []) {
@@ -989,6 +989,21 @@ export class PresetStore {
     this.promptViews = new Map()
     /** Disposer for the `system-prompt/change` invalidation listener. */
     this.promptWatcher = undefined
+    /**
+     * Scope warm-up state.
+     *
+     * Warming every preset's scope is what makes the FIRST `list` complete,
+     * but it is also the only slow part of that call. The promise is shared by
+     * every concurrent `list` (and by the boot-time call, if any), its result
+     * is memoized, and presets that failed to compose are remembered so a
+     * broken row cannot make every page load retry it. `reconcile()` resets
+     * all three, so newly added presets are warmed on the next page load.
+     */
+    this.scopeWarmPromise = null
+    this.scopesWarmed = false
+    this.warmFailures = new Set()
+    /** The registry wait is a FIRST-load concern only; later lists probe once. */
+    this.promptServiceWaited = false
   }
 
   /**
@@ -1048,6 +1063,13 @@ export class PresetStore {
     const id = presetId ?? ''
     if (this.promptViews.has(id)) return this.promptViews.get(id)
     const scope = this.scopeKeys.get(id)
+    // A preset whose own scope was never acquired cannot be answered by the
+    // GLOBAL layer: that view lacks every section/context the preset's own
+    // capability row registers, and caching it under the preset's id would
+    // pin the incomplete answer for the rest of the process. `list()` warms
+    // one scope per preset before building the catalogs, so this branch is
+    // the "registry unusable" case, not the normal first load.
+    if (id !== '' && scope === undefined) return undefined
     const contexts = readContextRegistry(this.ctx, scope)
     // A FAILED read is not cached: `systemPrompt` mounts asynchronously, so a
     // read taken before the service landed must not pin "unreadable" for the
@@ -1173,6 +1195,10 @@ export class PresetStore {
   /** Re-register every enabled preset from the current document. */
   async reconcile() {
     if (this.closed) return
+    // The document changed: a previously warmed set may now be missing a
+    // preset, and a previously broken preset deserves another attempt.
+    this.scopesWarmed = false
+    this.warmFailures.clear()
     for (const [, dispose] of this.disposers) {
       try {
         await dispose()
@@ -1390,7 +1416,7 @@ export class PresetStore {
       // Runtime-context snapshot whitelist. `assembly.contexts` is the SEPARATE
       // field the model-facing `Current runtime context. This snapshot
       // supersedes…` block is built from, so neither `complete` nor the
-      // `custom-official` section filter touches it. A preset that stores the
+      // custom section filter touches it. A preset that stores the
       // field gets its own waterfall listener here — the same place, and the
       // same proven-reachable context, the tool-assembly hygiene filter uses.
       //
@@ -1827,66 +1853,49 @@ export class PresetStore {
   }
 
   /**
-   * What the `custom-official` rule set recognizes among the LIVE sections.
+   * The prompt-section catalog the page's checklist renders.
    *
-   * `custom-official` filters by plain string prefix, and the built-in prefix
-   * list is a copy of the bundled rows taken when this plugin was built. That
-   * copy cannot be replaced by detection — the prompt registry stores no owner
-   * provenance — so the honest answer is a report: which live sections the
-   * rule set removes and which it keeps, each with its names. A section that
-   * survives a filter the operator expected to match is visible in the kept
-   * list, and a prefix added to this row's config fixes it without a release.
-   * @returns `{ available, sections, blocked, kept, rules, blockedList, keptList }`.
+   * Section names are read from the RUNNING registry through every scope this
+   * process can see (the global layer plus each preset's standing scope), so a
+   * section a newer build or a third-party plugin registers is selectable
+   * without a release. The two persona sections are always listed and marked
+   * `required`: they carry this preset's own prompt, the page shows them
+   * checked and disabled, and only the ADVANCED force list may remove them.
+   * `present` reports whether a live scope actually carries the name (a
+   * persona suffix stays absent until the preset stores one).
+   * @returns rows of `{ name, required, present }`, sorted by name.
    */
-  /**
-   * The official-section rules the CAPABILITY row actually runs with.
-   *
-   * The filter is mounted by `dsh-my-agent-preset/capability`, whose
-   * config lives on the preset row — not on this Host plugin. Reading the row
-   * keeps the page's report aligned with what will really be removed when a
-   * deployment widens the prefixes; the Host config is only the fallback for
-   * a deployment that mounts the Host half without the capability row.
-   * @returns `{ prefixes, names, keep }` (see `resolveSectionRules`).
-   */
-  sectionRuleSet(config) {
-    return resolveSectionRules(config ?? this.capabilityConfig())
+  sectionCatalog() {
+    const present = new Set()
+    for (const view of this.allPromptViews()) {
+      for (const name of view.sections ?? []) present.add(name)
+    }
+    const names = new Set(present)
+    for (const name of PERSONA_SECTION_NAMES) names.add(name)
+    return [...names]
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => ({
+        name,
+        required: PERSONA_SECTION_NAMES.includes(name),
+        present: present.has(name),
+      }))
   }
 
   /**
-   * The capability row's raw config, or this Host row's own.
+   * What the section checklist keeps and removes among the LIVE sections.
    *
-   * One traversal serving both `sectionRuleSet()` and `classifySections()`:
-   * the classifier needs the CONFIG (it resolves the rules itself), and both
-   * must read the same object or the report could describe rules the filter
-   * will not run.
-   * @returns the row config, never undefined.
+   * The same partition the capability row's runtime filter applies, so the
+   * panel's two lists are the decision that will really run. Sections are read
+   * through this preset's scope first (they are often registered inside the
+   * preset's own composition); when that read is unavailable the union of
+   * every readable scope answers instead, and an entirely unreadable registry
+   * reports `available: false` rather than claiming an empty surface.
+   * @param sections - the stored/draft keep list, or undefined when unmanaged.
+   * @param suppressed - the stored/draft persona force-suppress list.
+   * @param presetId - the preset whose scope is read.
+   * @returns `{ available, sections, kept, blocked, managed, keptList, blockedList }`.
    */
-  capabilityConfig() {
-    try {
-      for (const row of this.baseline().rows) {
-        const options = entryOptions(row)
-        if (options?.name !== CAPABILITY_PLUGIN) continue
-        return options?.config ?? {}
-      }
-    } catch {
-      /* a malformed row must not break the report */
-    }
-    return this.config ?? {}
-  }
-
-  sectionFilterReport(config, presetId) {
-    const source = config ?? this.capabilityConfig()
-    const rules = this.sectionRuleSet(source)
-    const summary = {
-      available: false,
-      rules: { prefixes: rules.prefixes.length, names: rules.names.size, keep: rules.keep.size },
-    }
-    // Prefer the baseline's own chain: sections are often registered inside a
-    // preset's composition, so the bare global layer would under-report. When
-    // even that is unreadable (no baseline id in this deployment, or the
-    // service is not mounted yet) fall back to the union of every scope this
-    // Host can read — a report about MORE sections is still honest, and an
-    // empty one would read as "nothing to check".
+  sectionFilterReport(sections, suppressed, presetId) {
     const baselineId = this.baseline().id
     let names = (
       (presetId === undefined ? undefined : this.promptView(presetId)) ??
@@ -1900,29 +1909,130 @@ export class PresetStore {
       }
       if (union.size > 0) names = union
     }
-    if (names === undefined) return summary
-    const classified = classifySections([...names], source)
-    // Counts alone hide the decision: the panel needs the names to answer
-    // "which sections did this rule actually block / keep?" A section list in
-    // a scope is normally tens of rows, so returning it is cheap; the client
-    // renders it in the same scrollable NameList as tools and contexts.
-    const blockedList = [...classified.blocked].sort()
-    const keptList = [...classified.kept].sort()
+    if (names === undefined) {
+      return { available: false, sections: 0, kept: 0, blocked: 0, managed: sections !== undefined, keptList: [], blockedList: [] }
+    }
+    const selection = resolveSectionSelection([...names], sections, suppressed)
     return {
       available: true,
       sections: names.size,
-      blocked: blockedList.length,
-      kept: keptList.length,
-      blockedList,
-      keptList,
-      rules: summary.rules,
+      kept: selection.kept.length,
+      blocked: selection.blocked.length,
+      managed: selection.managed,
+      keptList: selection.kept,
+      blockedList: selection.blocked,
     }
+  }
+
+  /**
+   * Wait (briefly) for the prompt registry service to land.
+   *
+   * `systemPrompt` mounts asynchronously, and the settings page asks `list`
+   * the moment its web route answers — on the first load after a restart that
+   * request can beat the service. Reading then yields no views at all, so the
+   * checklist shrinks to the persona rows while the inspect panel (asked a
+   * moment later) is complete. The wait is bounded and costs nothing once the
+   * service is already there.
+   * @param timeoutMs - how long to wait for `systemPrompt` to appear.
+   * @returns true when the service is readable.
+   */
+  async waitForPromptService(timeoutMs = 800) {
+    const readable = () => {
+      try {
+        return this.ctx.get?.('systemPrompt') !== undefined
+      } catch {
+        return false
+      }
+    }
+    if (readable()) return true
+    // Waited once: a deployment whose build never mounts `systemPrompt` would
+    // otherwise add this timeout to EVERY page load. Later lists still probe
+    // (the service can land late) but never block on it.
+    if (this.promptServiceWaited) return false
+    this.promptServiceWaited = true
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25))
+      if (readable()) return true
+    }
+    return readable()
+  }
+
+  /**
+   * Borrow every preset's scope once so the catalogs are complete on the FIRST
+   * page load, then release the leases.
+   *
+   * The borrows run CONCURRENTLY (bounded), so the page waits for the slowest
+   * composition instead of their sum; the promise is shared, so two concurrent
+   * `list` calls and the boot-time warm-up never compose the same preset twice.
+   * The deployment default is composed first to keep the mount order intact
+   * (see `composeBaseline`).
+   * @returns a promise that settles when this round of warming is done.
+   */
+  async warmPresetScopes() {
+    if (this.scopesWarmed) return
+    if (this.scopeWarmPromise !== null) return this.scopeWarmPromise
+    this.scopeWarmPromise = (async () => {
+      await this.composeBaseline()
+      const registry = this.registry
+      if (registry === undefined || typeof registry.acquireScope !== 'function') return
+      const pending = this.presets
+        .map((preset) => preset.id)
+        .filter(
+          (id) =>
+            id !== '' &&
+            this.scopeKeys.has(id) === false &&
+            this.warmFailures.has(id) === false,
+        )
+      if (pending.length === 0) {
+        this.scopesWarmed = true
+        return
+      }
+      const leases = []
+      // Bounded concurrency: enough to hide the per-preset latency, few enough
+      // that a large library cannot compose dozens of scopes at once.
+      const limit = 4
+      let cursor = 0
+      const worker = async () => {
+        while (cursor < pending.length) {
+          const id = pending[cursor++]
+          try {
+            const lease = await registry.acquireScope(id)
+            this.rememberScopeKey(id, lease?.key)
+            if (lease !== undefined) leases.push(lease)
+          } catch {
+            // A preset that cannot compose is reported by its card status; its
+            // rows are simply absent from the catalog. Remember the failure so
+            // the next page load does not pay for it again; `reconcile()`
+            // clears the set after a save/deploy change.
+            this.warmFailures.add(id)
+          }
+        }
+      }
+      try {
+        await Promise.all(Array.from({ length: Math.min(limit, pending.length) }, worker))
+      } finally {
+        for (const lease of leases) await releaseLease(lease)
+        this.scopesWarmed = this.warmFailures.size === 0
+      }
+    })().finally(() => {
+      this.scopeWarmPromise = null
+    })
+    return this.scopeWarmPromise
   }
 
   /** The settings page's read model. */
   async list() {
     const rows = await this.registryRows()
     const byId = new Map(rows.map((row) => [row.id, row]))
+    // The registry may not have mounted yet: without it every view is empty and
+    // a scope warmed now would compose without its prompt rows.
+    await this.waitForPromptService()
+    // Warming the other presets below must not beat the deployment default into
+    // the composition order (a blank session inherits the FIRST mounted
+    // composition; see composeBaseline). Idempotent, so this is a no-op once
+    // reconcile() ran.
+    await this.composeBaseline()
     const baseline = this.baseline()
     // ONE lease serves both catalogues: the tool surface and the skill list
     // are both read through the baseline's standing scope, and borrowing it
@@ -1937,6 +2047,14 @@ export class PresetStore {
         lease = undefined
       }
     }
+    // Every preset's own scope carries the sections/contexts its capability
+    // row registers during composition. Only the baseline used to be warmed,
+    // so the FIRST list after a restart rendered a global-only catalog (a
+    // nearly empty checklist) while the inspect panel — which acquires the
+    // requested preset's scope — was complete. The warm-up is shared and
+    // memoized: concurrent page loads await ONE round of borrows, later ones
+    // pay nothing, and a broken preset cannot make every load retry it.
+    await this.warmPresetScopes()
     const scopeKey = lease?.key
     try {
       // The page's candidate list must be the full inherited surface — built-ins
@@ -1986,11 +2104,6 @@ export class PresetStore {
             // (the fields are additive); a Client that reads it can say WHERE
             // the answer came from instead of trusting a shipped table.
             'contextRegistryTruth',
-            // The official-section rule set can be widened through config, and
-            // `sectionFilter` names the live sections the current rule set
-            // blocks and keeps — so a newer DSH section that survives is
-            // visible in the page, with its name.
-            'sectionRules',
           ],
           // The snapshot list the page renders: every contribution DSH's own
           // rows register (with its `required` flag, because the registry
@@ -2011,19 +2124,11 @@ export class PresetStore {
             // catalog answered from the global layer plus the shipped table.
             scopeKeys: this.scopeKeys.size,
           },
-          // The other half of the same staleness problem: `custom-official`
-          // removes sections by prefix, and the built-in prefix list ships with
-          // this plugin. The report names the sections that survive, so a rule
-          // that no longer covers a newer build's namespace is visible instead
-          // of silently incomplete.
-          sectionFilter: this.sectionFilterReport(),
-          // What an EMPTY rule field means. The page states these below its
-          // three chip fields (it does not prefill them), so a preset that
-          // stores nothing still shows the rule set really in force.
-          sectionRuleDefaults: {
-            prefixes: [...OFFICIAL_SECTION_DEFAULTS.prefixes],
-            names: [...OFFICIAL_SECTION_DEFAULTS.names],
-          },
+          // The prompt sections the checklist can offer, read live so a
+          // section a newer build (or a third-party plugin) registers is
+          // selectable without a release. The persona rows always appear and
+          // are marked required.
+          sectionCatalog: this.sectionCatalog(),
           registry: rows.map((row) => ({ id: row.id, name: row.name, isDefault: row.isDefault, broken: row.broken })),
         },
       }
@@ -2039,39 +2144,35 @@ export class PresetStore {
     const index = requestedId === '' ? -1 : this.presets.findIndex((preset) => preset.id === requestedId)
     const name = text(payload.name)
     if (name === '') throw new Error('预设名称不能为空')
-    // A fresh preset that manages nothing would silently keep the whole
-    // snapshot; the page always sends its fully-checked list, so a NEW preset
-    // gets the default-everything whitelist and is therefore manageable from
-    // the first save. An update keeps whatever the document already stored.
-    if (index < 0 && payload.contexts === undefined) payload.contexts = DEFAULT_CONTEXT_NAMES
+    // A fresh preset with no snapshot list stays UNMANAGED: undefined means
+    // "everything injects", which is exactly what the page showed. Writing the
+    // shipped names here used to freeze them — every context a plugin (or a
+    // running Agent's observation table) adds later opened UNCHECKED on this
+    // preset while a new one showed it checked.
     const now = new Date().toISOString()
-    // A field the page does not submit (an older client, a hand-written
-    // profile) must be CARRIED forward: rebuilding the preset from the payload
-    // alone would silently drop a prefix an operator added by hand to the
-    // data file — the edit that motivated the feature would undo it. A copy
-    // inherits its source's rules for the same reason. An explicit value in
-    // the payload still wins: the chip fields always send their array, and an
-    // empty array clears the override.
-    const ruleSource =
+    // A list field the page does not submit (a hand-written profile, or a
+    // Client built before the checklist existed) must be CARRIED forward:
+    // rebuilding the preset from the payload alone would silently turn a
+    // managed checklist into "manage nothing". A copy inherits its source's
+    // checklists for the same reason. An explicit value in the payload still
+    // wins, and an absent field on the SOURCE stays absent — that is the
+    // unmanaged state, not an empty whitelist.
+    const listSource =
       index >= 0
         ? this.presets[index]
         : this.presets.find((preset) => preset.id === text(payload.insertAfter))
-    const carriedRules =
-      ruleSource === undefined
+    const carriedLists =
+      listSource === undefined
         ? {}
         : {
-            ...(Array.isArray(ruleSource.sectionRulePrefixes)
-              ? { sectionRulePrefixes: ruleSource.sectionRulePrefixes }
-              : {}),
-            ...(Array.isArray(ruleSource.sectionRuleNames)
-              ? { sectionRuleNames: ruleSource.sectionRuleNames }
-              : {}),
-            ...(Array.isArray(ruleSource.sectionRuleKeep)
-              ? { sectionRuleKeep: ruleSource.sectionRuleKeep }
+            ...(Array.isArray(listSource.contexts) ? { contexts: listSource.contexts } : {}),
+            ...(Array.isArray(listSource.sections) ? { sections: listSource.sections } : {}),
+            ...(Array.isArray(listSource.sectionsSuppressed)
+              ? { sectionsSuppressed: listSource.sectionsSuppressed }
               : {}),
           }
     const next = normalizePreset({
-      ...carriedRules,
+      ...carriedLists,
       ...payload,
       id: index >= 0 ? this.presets[index].id : requestedId === '' ? generateId() : requestedId,
       name,
@@ -2159,19 +2260,16 @@ export class PresetStore {
     // The advanced force-suppress list is previewed the same way: an editor
     // draft overrides the stored value, and the runtime filter reads the very
     // same names.
-    // The `custom-official` rule set is previewed the same way: an empty or
-    // absent STORED field means "the built-in prefixes", so a draft that
-    // clears a chip field sends `[]` and must fall back instead of inheriting
-    // the stored rule. Keeping an explicitly empty array is what lets that
-    // override win; only a MISSING key falls back to the preset.
-    const ruleFields = (value) => {
-      const out = {}
-      for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
-        if (Array.isArray(value?.[key])) out[key] = stringList(value[key])
-      }
-      return out
-    }
-    const draftRules = { ...ruleFields(preset), ...ruleFields(override) }
+    // The section checklist is previewed the same way: a draft overrides the
+    // stored value and the runtime filter reads the very same names. An
+    // explicit draft value wins (including `null`, which means "unmanaged");
+    // only a MISSING key falls back to the preset.
+    const draftSections =
+      override?.sections !== undefined ? normalizeSections(override.sections) : preset.sections
+    const draftSectionSuppressed =
+      override?.sectionsSuppressed !== undefined
+        ? normalizeSectionSuppression(override.sectionsSuppressed) ?? []
+        : preset.sectionsSuppressed ?? []
     const contextForced =
       override?.requiredSuppressed !== undefined
         ? normalizeRequiredSuppression(override.requiredSuppressed) ?? []
@@ -2187,10 +2285,9 @@ export class PresetStore {
       listed: [...listed].sort(),
       // True when the answer applied the editor's unsaved selection.
       ...(override !== undefined ? { draft: true } : {}),
-      // What the `custom-official` filter would remove under the STORED or
-      // DRAFTED rule set for THIS preset, so the panel can show the leak
-      // warning update as the boxes are edited.
-      sectionFilter: this.sectionFilterReport(draftRules, requestedId),
+      // What the checklist would keep / remove under the STORED or DRAFTED
+      // selection for THIS preset, so the panel updates as boxes are clicked.
+      sectionFilter: this.sectionFilterReport(draftSections, draftSectionSuppressed, requestedId),
     }
     try {
       const tools = this.ctx.get('tools')

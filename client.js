@@ -88,22 +88,12 @@ window.__ModuleLoader__.load({
 /* Chip editor: the same 34px box/border metrics as .aps-input, with the chips
    and the caret sharing one row. Focus lives on the inner input, so the ring is
    drawn by :focus-within on the shell. */
-.aps-tagEditor{box-sizing:border-box;width:100%;min-height:34px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:3px 6px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-3);cursor:text}
-.aps-tagEditor:focus-within{border-color:var(--dsw-alias-state-business-primary)}
-.aps-tag{display:inline-flex;align-items:center;max-width:100%;gap:3px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);padding:1px 2px 1px 6px;font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;line-height:17px}
-.aps-tagText{min-width:0;overflow-wrap:anywhere}
-.aps-tagRemove{appearance:none;border:0;background:0 0;font:inherit;font-size:12px;line-height:1;color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));border-radius:var(--dsw-radius-sm);padding:0 4px;cursor:pointer}
-.aps-tagRemove:hover{background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary)}
-.aps-tagRemove:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-.aps-tagInput{flex:1 1 96px;min-width:96px;box-sizing:border-box;border:0;background:0 0;font:inherit;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary);height:26px;padding:0 4px}
-.aps-tagInput:focus-visible{outline:none}
-.aps-tagInput::placeholder{color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary))}
 .aps-seg{display:inline-flex;gap:2px;background:var(--dsw-alias-bg-layer-3);border-radius:var(--dsw-radius-md);padding:2px}
 .aps-segItem{appearance:none;border:0;background:0 0;font:inherit;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary);border-radius:var(--dsw-radius-sm);padding:4px 12px;cursor:pointer}
 .aps-segItem[aria-pressed='true']{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-weight:500}
 .aps-segItem:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .aps-filter{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
-.aps-toolFilter{margin-top:10px}
+.aps-toolFilter,.aps-sectionFilter,.aps-contextFilter{margin-top:10px}
 .aps-input[type='search']{-webkit-appearance:none;appearance:none}
 .aps-input[type='search']::-webkit-search-cancel-button{cursor:pointer}
 .aps-checklist{max-height:232px;overflow:auto;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:6px}
@@ -215,16 +205,16 @@ window.__ModuleLoader__.load({
       groupBasic: '基本信息',
       groupPrompt: '提示词',
       instructions: '系统提示词',
-      instructionsHint: '写入该模式的系统提示词；留空则沿用部署人设（在「自定义屏蔽（默认官方）」下留空 = 不注入人设）。',
+      instructionsHint: '写入该模式的系统提示词；留空则沿用部署人设（在「自定义」下留空 = 不注入人设）。',
       instructionMode: '注入方式',
       modeAppend: '追加',
       modeComplete: '完全替换',
-      modeCustomBlock: '自定义屏蔽（默认官方）',
+      modeCustom: '自定义',
       modeAppendHint: '只用这段文字替换人设前缀，保留 DSH 其它系统提示词（工具指导等）。',
       modeCompleteHint: '只使用这段文字，移除所有其它系统提示词（含第三方插件注入）。',
-      modeCustomBlockHint: '只用这段文字作为人设，按下方三栏规则屏蔽提示词：默认屏蔽 DSH 官方段，可补充屏蔽前缀或完整段名，也可点名保留某些段；第三方插件与外部 MCP 注入的提示词默认保留。',
+      modeCustomHint: '只用这段文字作为人设，并按下方勾选决定注入哪些提示词段：勾选 = 保留，未勾选 = 屏蔽。DSH 官方段不再默认屏蔽，预设自身的人设段始终保留。',
       includeWorkspace: '附带工作区',
-      includeWorkspaceHint: '在提示词末尾自动附上当前会话工作区路径；追加、完全替换、自定义屏蔽（默认官方）三种方式都生效（默认开启）。',
+      includeWorkspaceHint: '在提示词末尾自动附上当前会话工作区路径；追加、完全替换、自定义三种方式都生效（默认开启）。',
       includeWorkspaceOn: '在提示词末尾附带当前会话工作区',
       groupContexts: '运行时上下文',
       contexts: '注入的快照项',
@@ -239,24 +229,23 @@ window.__ModuleLoader__.load({
       contextsNameSeparator: '、',
       contextsRuntimeRequiredHint: '运行时的提示词注册表声明这些项为必需（本插件的目录里没有）：{names}。它们由官方每个步骤强制补回，因此保持勾选且不可关闭。',
       contextsRegistryUnavailable: '未能读取运行时的提示词注册表，以上目录来自本插件内置的表，可能与当前 DSH 版本不一致（必需项可能显示得不准确）。',
-      officialPrefixes: '补充屏蔽提示词前缀',
-      officialPrefixesHint: '按普通前缀屏蔽：添加 api 会屏蔽所有以 api 开头的段（api:docs、api-schema…），添加 a:b 会屏蔽 a:b:c 等以 a:b 开头的段。不用写冒号结尾，也不要求写满冒号分隔的完整层级；只想精确命中某一段请用下一栏。内置 {count} 个前缀始终生效，这里只做追加，删掉某一项也不会关闭内置规则。',
-      officialPrefixesExample: '添加：输入后按回车、逗号或移出焦点；删除：点标签上的 × 或按退格。',
-      officialPrefixesPlaceholder: '输入前缀后按回车添加，如 api 或 a:b',
-      officialNames: '补充屏蔽提示词段名（完整名称）',
-      officialNamesHint: '按完整段名精确屏蔽，不做前缀展开——名字必须一模一样。适合没有冒号分层的段，或只想点名屏蔽某一段。',
-      officialNamesExample: '如 mcp-resource-servers 只命中同名段；tool:bash 只屏蔽 bash 的指导段，不会连带 tool:read。',
-      officialNamesPlaceholder: '输入完整段名后按回车添加，如 tool:bash',
-      officialKeep: '保留（不屏蔽）提示词段名（完整名称）',
-      officialKeepHint: '保留名单优先于上面的屏蔽规则：命中完整段名后，即使它落在被屏蔽的前缀范围内也照样保留。只认完整名称，填前缀无效。',
-      officialKeepExample: '如 tool:bash 会保住 bash 的指导段；想放过自己的某个段，就填它的完整名字。',
-      officialKeepPlaceholder: '输入要保留的完整段名，如 tool:bash',
-      officialRulesSectionHint: '这三栏只影响「自定义屏蔽（默认官方）」的人设注入：工具、技能、运行时上下文不受影响，另外两种注入方式也不读取它们。补充项与内置规则叠加，不会替代内置规则。',
-      officialDefaultsList: '内置规则（始终生效，与上面三栏叠加）：前缀 {prefixes}；段名 {names}。',
-      officialDroppedHint: '以下内置项不在上面的标签里，但仍然生效（这里是追加，不会替换内置规则）：{names}。要放过其中某个具体段，请把它的完整段名加进「保留（不屏蔽）提示词命名段」。',
-      tagRemove: '删除 {name}',
+      sections: '注入的提示词段',
+      sectionsHint: '逐项勾选要注入的提示词段；未勾选的段对该预设不再注入。标记「始终保留 · 不可屏蔽」的项承载本预设自己的提示词，默认无法取消，可用下方高级选项强制屏蔽。',
+      sectionsRequiredTag: '始终保留 · 不可屏蔽',
+      sectionsSuppressedTag: '已被本预设强制屏蔽',
+      sectionsForceLabel: '高级 · 强制屏蔽这一项（官方本不允许）',
+      sectionsForceHint: '人设段承载本预设自己的提示词，默认始终保留；强制屏蔽后该段不再注入，等同没有这段文字。',
+      sectionsRegistryUnavailable: '未能读取运行时的提示词段列表，以上目录可能不完整。',
+      noSections: '当前没有可勾选的提示词段。',
+      sectionFilterPlaceholder: '过滤提示词段：名称',
+      sectionFilterNone: '没有匹配的提示词段',
+      sectionFilterCount: '匹配 {shown}/{total} 个提示词段',
+      sectionsClearHint: '取消全部普通勾选后，只保留预设自身的人设段。',
       contextsClearHint: '取消全部非必需勾选后，快照只剩必需项。',
       noContexts: '当前没有可勾选的快照上下文项。',
+      contextFilterPlaceholder: '过滤上下文：名称或描述',
+      contextFilterNone: '没有匹配的上下文',
+      contextFilterCount: '匹配 {shown}/{total} 个上下文',
       copy: '复制',
       copyDone: '已复制为 {name}。',
       copyFailed: '复制失败：{message}',
@@ -295,13 +284,12 @@ window.__ModuleLoader__.load({
       inspectRunning: '读取中…',
       inspectAutoHint: '进入本页与配置改动后会自动重新读取。',
       inspectDraftPreview: '预览：按当前编辑内容计算，保存后才生效',
-      inspectSectionRules: '段规则：{prefixes} 个前缀 · {names} 个精确段名 · {keep} 个保留规则',
-      inspectBlockedSections: '屏蔽段 {count} 个',
-      inspectKeptSections: '保留段 {count} 个',
-      inspectSectionRulesHint: '段规则按上方三栏的当前标签计算（默认官方规则已计入），保存后才会改变运行时注入。',
-      inspectSectionRulesUnavailable: '未能读取运行时 section 列表，屏蔽/保留分区暂不可用；上面的规则计数仍然有效。',
-      inspectBlockedSectionsList: '屏蔽段（{count}）',
-      inspectKeptSectionsList: '保留段（{count}）',
+      inspectSections: '保留的提示词段 {count} 项',
+      inspectSectionsBlocked: '被屏蔽的提示词段 {count} 项',
+      inspectSectionsUnmanaged: '该预设未管理提示词段（全部注入）',
+      inspectSectionsList: '保留的提示词段（{count}）',
+      inspectSectionsBlockedList: '被屏蔽的提示词段（{count}）',
+      inspectSectionsUnavailable: '未能读取运行时 section 列表，保留/屏蔽分区暂不可用。',
       inspectSurface: '继承工具面 {count} 个',
       inspectTools: '可用工具 {count} 个',
       inspectBlocked: '被名单拒绝的工具 {count} 个',
@@ -387,16 +375,16 @@ window.__ModuleLoader__.load({
       groupBasic: 'Basics',
       groupPrompt: 'Prompt',
       instructions: 'System prompt',
-      instructionsHint: 'Written into this mode\u2019s system prompt; empty keeps the deployment persona (empty in Official only means no persona at all).',
+      instructionsHint: 'The preset\u2019s system prompt; empty falls back to the deployment persona (empty under \u201cCustom\u201d = no persona injected).',
       instructionMode: 'Injection',
       modeAppend: 'Prepend',
       modeComplete: 'Replace',
-      modeCustomBlock: 'Custom blocking (DSH defaults)',
+      modeCustom: 'Custom',
       modeAppendHint: 'Uses this text as the persona prefix (replacing the deployment persona) while keeping the rest of DSH\u2019s system prompt, such as tool guidance.',
       modeCompleteHint: 'Uses only this text, removing every other system-prompt section (including third-party contributions).',
-      modeCustomBlockHint: 'Uses this text as the persona and filters sections with the three fields below: DSH\u2019s own sections are blocked by default, extra prefixes or exact names can be blocked, and specific sections can be kept; third-party plugin and external MCP contributions stay by default.',
+      modeCustomHint: 'Uses this text as the persona and decides which prompt sections are injected from the checklist below: checked = kept, unchecked = blocked. DSH\u2019s own sections are no longer blocked by default; the preset\u2019s own persona sections are always kept.',
       includeWorkspace: 'Include workspace',
-      includeWorkspaceHint: 'Append the current session working directory to the end of the prompt; applies to Prepend, Replace, and Official only (on by default).',
+      includeWorkspaceHint: 'Appends the current session workspace path to the prompt; applies to append, complete and custom modes (on by default).',
       includeWorkspaceOn: 'Append the current session working directory',
       groupContexts: 'Runtime context',
       contexts: 'Snapshot contributions',
@@ -411,24 +399,23 @@ window.__ModuleLoader__.load({
       contextsNameSeparator: ', ',
       contextsRuntimeRequiredHint: 'The live prompt registry marks these entries as required (they are not in this plugin’s catalog): {names}. DSH restores them every step, so they stay checked and cannot be turned off.',
       contextsRegistryUnavailable: 'The live prompt registry could not be read, so this catalog comes from the table shipped with this plugin and may not match the running DSH build (required rows can be wrong).',
-      officialPrefixes: 'Also block these prompt prefixes',
-      officialPrefixesHint: 'Blocks by plain prefix: adding api blocks every section starting with api (api:docs, api-schema…), and a:b blocks a:b:c. No trailing colon is required and no namespace boundary is assumed; use the next field for an exact single section. The {count} built-in prefixes always apply; this list only adds to them.',
-      officialPrefixesExample: 'Add: type a value, then press Enter, a comma, or leave the field. Remove: click the × on a chip, or press Backspace.',
-      officialPrefixesPlaceholder: 'Type a prefix and press Enter, e.g. api or a:b',
-      officialNames: 'Also block these prompt sections (exact name)',
-      officialNamesHint: 'Matches the whole section name exactly — no prefix expansion, the name must match character for character. Use it for sections without a namespace, or to single one out.',
-      officialNamesExample: 'mcp-resource-servers matches that one section; tool:bash blocks only the bash guidance, leaving tool:read alone.',
-      officialNamesPlaceholder: 'Type an exact section name and press Enter, e.g. tool:bash',
-      officialKeep: 'Keep these prompt sections (exact name)',
-      officialKeepHint: 'Exemptions outrank the block rules above: a hit stays even inside a blocked namespace. Exact names only — a prefix does nothing here.',
-      officialKeepExample: 'tool:bash keeps the bash guidance; to keep one of your own sections, give its full name.',
-      officialKeepPlaceholder: 'Type an exact section name to keep, e.g. tool:bash',
-      officialRulesSectionHint: 'These three fields only affect the “custom-official” persona filter: tools, skills and the runtime-context snapshot are untouched, and the other two injection modes never read them. Entries add to the built-in rules and never replace them.',
-      officialDefaultsList: 'Built-in rules (always in force, added to the fields above): prefixes {prefixes}; names {names}.',
-      officialDroppedHint: 'These built-in entries are not in the chips above but still apply (the fields add to the built-in rules; they never replace them): {names}. To let one of them through, add its full section name to “Keep these prompt sections”.',
-      tagRemove: 'Remove {name}',
+      sections: 'Injected prompt sections',
+      sectionsHint: 'Check every prompt section this preset should inject; unchecked sections are removed for this preset. Rows marked \u201calways kept \u00b7 not blockable\u201d carry the preset\u2019s own prompt and are disabled by default; the advanced option below can force-block them.',
+      sectionsRequiredTag: 'Always kept \u00b7 not blockable',
+      sectionsSuppressedTag: 'Force-blocked by this preset',
+      sectionsForceLabel: 'Advanced \u00b7 force-block this row (the official contract does not allow it)',
+      sectionsForceHint: 'The persona section carries the prompt you wrote and is always kept by default; force-blocking it removes that text from the prompt.',
+      sectionsRegistryUnavailable: 'The runtime section list could not be read; this catalog may be incomplete.',
+      noSections: 'No prompt section is available to choose from.',
+      sectionFilterPlaceholder: 'Filter sections: name',
+      sectionFilterNone: 'No matching section',
+      sectionFilterCount: '{shown}/{total} sections match',
+      sectionsClearHint: 'Clearing the ordinary checks keeps only the preset\u2019s own persona sections.',
       contextsClearHint: 'Unchecking every optional row leaves only the required ones.',
       noContexts: 'No snapshot context contribution is available to choose from.',
+      contextFilterPlaceholder: 'Filter contexts: name or description',
+      contextFilterNone: 'No matching context',
+      contextFilterCount: '{shown}/{total} contexts match',
       copy: 'Duplicate',
       copyDone: 'Duplicated as {name}.',
       copyFailed: 'Duplicate failed: {message}',
@@ -467,13 +454,12 @@ window.__ModuleLoader__.load({
       inspectRunning: 'Reading…',
       inspectAutoHint: 'Re-reads automatically on page entry and after every configuration change.',
       inspectDraftPreview: 'Preview: computed from the current edits; takes effect after saving',
-      inspectSectionRules: 'Section rules: {prefixes} prefixes · {names} exact names · {keep} keep rules',
-      inspectBlockedSections: 'Sections blocked: {count}',
-      inspectKeptSections: 'Sections kept: {count}',
-      inspectSectionRulesHint: 'Section rules use the chips above (DSH defaults included); only saving changes runtime injection.',
-      inspectSectionRulesUnavailable: 'The live section list could not be read, so the blocked/kept split is unavailable; the rule counts above still hold.',
-      inspectBlockedSectionsList: 'Sections blocked ({count})',
-      inspectKeptSectionsList: 'Sections kept ({count})',
+      inspectSections: 'Prompt sections kept: {count}',
+      inspectSectionsBlocked: 'Prompt sections blocked: {count}',
+      inspectSectionsUnmanaged: 'This preset does not manage prompt sections (everything injected)',
+      inspectSectionsList: 'Prompt sections kept ({count})',
+      inspectSectionsBlockedList: 'Prompt sections blocked ({count})',
+      inspectSectionsUnavailable: 'The runtime section list could not be read; the kept/blocked partition is unavailable.',
       inspectSurface: 'Inherited tool surface: {count}',
       inspectTools: 'Usable tools: {count}',
       inspectBlocked: 'Tools refused by the list: {count}',
@@ -591,7 +577,7 @@ window.__ModuleLoader__.load({
         name: String(source.name ?? ''),
         description: String(source.description ?? ''),
         instructions: String(source.instructions ?? ''),
-        instructionMode: ['append', 'complete', 'custom-official'].includes(source.instructionMode)
+        instructionMode: ['append', 'complete', 'custom'].includes(source.instructionMode)
           ? source.instructionMode
           : 'append',
         includeWorkspace: source.includeWorkspace !== false,
@@ -607,10 +593,9 @@ window.__ModuleLoader__.load({
       // applies to the advanced force-suppress list.
       if (Array.isArray(source.contexts)) portable.contexts = asStringList(source.contexts)
       if (Array.isArray(source.requiredSuppressed)) portable.requiredSuppressed = asStringList(source.requiredSuppressed)
-      for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
-        const list = asStringList(source[key])
-        if (list.length > 0) portable[key] = list
-      }
+      if (Array.isArray(source.sections)) portable.sections = asStringList(source.sections)
+      if (Array.isArray(source.sectionsSuppressed))
+        portable.sectionsSuppressed = asStringList(source.sectionsSuppressed)
       return portable
     }
 
@@ -645,7 +630,7 @@ window.__ModuleLoader__.load({
         name,
         description: typeof input.description === 'string' ? input.description : '',
         instructions: typeof input.instructions === 'string' ? input.instructions : '',
-        instructionMode: ['append', 'complete', 'custom-official'].includes(input.instructionMode)
+        instructionMode: ['append', 'complete', 'custom'].includes(input.instructionMode)
           ? input.instructionMode
           : 'append',
         includeWorkspace: input.includeWorkspace !== false,
@@ -658,10 +643,8 @@ window.__ModuleLoader__.load({
       }
       if (Array.isArray(input.contexts)) preset.contexts = asStringList(input.contexts)
       if (Array.isArray(input.requiredSuppressed)) preset.requiredSuppressed = asStringList(input.requiredSuppressed)
-      for (const key of ['sectionRulePrefixes', 'sectionRuleNames', 'sectionRuleKeep']) {
-        const list = asStringList(input[key])
-        if (list.length > 0) preset[key] = list
-      }
+      if (Array.isArray(input.sections)) preset.sections = asStringList(input.sections)
+      if (Array.isArray(input.sectionsSuppressed)) preset.sectionsSuppressed = asStringList(input.sectionsSuppressed)
       return preset
     }
 
@@ -832,6 +815,10 @@ window.__ModuleLoader__.load({
         // runtime behaving as it does today. Only an edit of this area turns it
         // into an array, and an array is then the strict whitelist.
         contexts: undefined,
+        // LEFT UNDEFINED for the same reason: absent = this preset does not
+        // manage prompt sections, so every section injects and the editor shows
+        // the fully-checked list. Only editing this area turns it into an array.
+        sections: undefined,
         skills: [],
         tools: { mode: 'all', names: [] },
         enabled: true,
@@ -891,158 +878,222 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** Split a rule list typed with commas (either width), `、`, or newlines. */
-    function parseRuleList(raw) {
-      return [
-        ...new Set(
-          String(raw ?? '')
-            .split(/[,，、\n]/)
-            .map((entry) => entry.trim())
-            .filter((entry) => entry !== ''),
-        ),
-      ]
+    /**
+     * The prompt-section checklist state one draft presents.
+     *
+     * `checked` is what the runtime injects: an UNMANAGED preset (absent
+     * `sections`) shows every optional row checked, a managed one follows its
+     * array. `forced` is the ADVANCED persona force-block list — the only way
+     * to remove a required row, because those rows carry the prompt text the
+     * user authored for this preset.
+     * @param preset - the draft or stored preset.
+     * @param catalog - the Host's section catalog rows.
+     * @returns `{ checked, forced, optional }`.
+     */
+    function sectionSelectionState(preset, catalog) {
+      const rows = Array.isArray(catalog) ? catalog : []
+      const requiredRows = rows.filter((row) => row.required === true)
+      const optionalNames = rows.filter((row) => row.required !== true).map((row) => row.name)
+      const forced = Array.isArray(preset?.sectionsSuppressed)
+        ? requiredRows.map((row) => row.name).filter((name) => preset.sectionsSuppressed.includes(name))
+        : []
+      const optionalChecked = Array.isArray(preset?.sections)
+        ? preset.sections.filter((name) => optionalNames.includes(name))
+        : optionalNames
+      const requiredOn = requiredRows
+        .map((row) => row.name)
+        .filter((name) => forced.includes(name) === false)
+      return { checked: [...new Set([...optionalChecked, ...requiredOn])], forced, optional: optionalNames }
     }
 
     /**
-     * The value a prefix is compared by: the verbatim string.
+     * The optional-only keep list a draft should persist.
      *
-     * The field is a PLAIN PREFIX list, not a namespace list: `a:b` matches
-     * `a:b:c` (and anything else starting with `a:b`), and `api` matches
-     * `api:docs` as well as `api-extra`. Nothing is appended or truncated, so
-     * a chip shows exactly what will be compared; only surrounding whitespace
-     * is dropped.
+     * Required names are written to neither half unless they are force-blocked,
+     * so the stored arrays carry exactly the decisions the user made. Both
+     * arrays are deliberately not filtered against the shipped catalog: the
+     * page saves what it showed, and a section that disappears from the build
+     * simply becomes invisible until it comes back.
+     * @param preset - the draft or stored preset.
+     * @param catalog - the Host's section catalog rows.
+     * @returns the optional names that inject.
      */
-    function normalizePrefix(entry) {
-      return String(entry ?? '').trim()
+    function sectionWhitelistOf(preset, catalog) {
+      const optionalNames = (Array.isArray(catalog) ? catalog : [])
+        .filter((row) => row.required !== true)
+        .map((row) => row.name)
+      return sectionSelectionState(preset, catalog).checked.filter((name) => optionalNames.includes(name))
     }
 
     /**
-     * Chip editor for the three `custom-official` rule lists.
+     * The prompt-section checklist — one checkbox row per live section.
      *
-     * The value IS the parsed list the draft carries, so adding or removing a
-     * chip writes the array directly; there is no raw-text side state that
-     * could drift from the save payload (the old comma box kept one, and its
-     * trailing comma or half-typed namespace lived only in the input).
+     * Deliberately the same construction as {@link ContextPicker}: the row
+     * markup, the 全选 / 取消全选 `aps-linkButton` pair acting on the visible
+     * optional rows, the 已选 count, and checked-first ordering all come from
+     * the same classes, so the two lists read as one page. Checked = injected.
      *
-     * Typing a separator commits the finished entries at once and keeps the
-     * half-typed tail in the box; Enter and blur commit the tail as well.
-     * Backspace on an empty box removes the last chip, and every chip has its
-     * own `×`. The remove button cancels mousedown so the input keeps focus —
-     * otherwise blur would commit pending text and the click would then compute
-     * its removal from the pre-commit list, silently dropping one of the edits.
+     * A required row (the preset's own persona sections) shows checked and
+     * DISABLED; its ADVANCED force-box is the only control that may remove it.
+     * @param props - rows, selection, and change hooks.
+     * @returns the checklist element.
      */
-    function TagInput(props) {
-      const [text, setText] = useState('')
-      const inputRef = useRef(null)
-      // An IME's intermediate value must not be split on its punctuation: keep
-      // the raw composition in the box and parse it once composition ends.
-      const composing = useRef(false)
-      const values = Array.isArray(props.value) ? props.value : []
-      const keyOf = props.keyOf ?? ((entry) => entry)
-      const emit = (next) => {
-        const unchanged =
-          next.length === values.length && next.every((entry, index) => entry === values[index])
-        if (unchanged === false) props.onChange(next)
-      }
-      const append = (raw) => {
-        const seen = new Set(values.map(keyOf))
-        const next = [...values]
-        for (const entry of parseRuleList(raw)) {
-          const key = keyOf(entry)
-          if (seen.has(key)) continue
-          seen.add(key)
-          next.push(entry)
-        }
-        emit(next)
-      }
-      const commit = (raw) => {
-        append(raw)
-        setText('')
-      }
-      const removeAt = (index) => emit(values.filter((_, position) => position !== index))
-      const handleText = (raw) => {
-        if (composing.current) {
-          setText(String(raw ?? ''))
-          return
-        }
-        // Everything before the last separator is a finished entry; whatever
-        // follows it is still being typed.
-        const pieces = String(raw ?? '').split(/[,，、\n]/)
-        const tail = pieces.pop() ?? ''
-        if (pieces.length > 0) append(pieces.join(','))
-        setText(tail.replace(/^\s+/, ''))
-      }
-      const onKeyDown = (event) => {
-        // An IME confirming a candidate must not submit the half-converted
-        // text, so composing Enter/Backspace are ignored.
-        if (event?.nativeEvent?.isComposing || event?.keyCode === 229) return
-        if (event.key === 'Enter') {
-          event.preventDefault?.()
-          commit(text)
-          return
-        }
-        if (event.key === 'Escape') {
-          setText('')
-          return
-        }
-        if (event.key === 'Backspace' && text === '' && values.length > 0) {
-          event.preventDefault?.()
-          removeAt(values.length - 1)
-        }
-      }
+    function SectionPicker(props) {
+      const t = props.t
+      const rows = props.rows ?? []
+      const checked = props.checked ?? []
+      const forced = props.forced ?? []
+      const [orderBasis, setOrderBasis] = useState(() => [...checked])
+      // Same filter box the tool checklist carries: one keyword matched against
+      // the row name (a section row has no description), with the visible set
+      // re-ranked against the live selection whenever the keyword changes.
+      const [filter, setFilter] = useState('')
+      if (rows.length === 0) return h('p', { className: 'aps-hint' }, t('noSections'))
+      const filterKey = filter.trim().toLowerCase()
+      const visibleRows =
+        filterKey === ''
+          ? rows
+          : rows.filter((row) => String(row.name ?? '').toLowerCase().includes(filterKey))
+      const ranked = [...visibleRows].sort((left, right) => {
+        const leftRank = orderBasis.includes(left.name) ? 0 : 1
+        const rightRank = orderBasis.includes(right.name) ? 0 : 1
+        return leftRank - rightRank || left.name.localeCompare(right.name)
+      })
+      // Two optional halves: `optional` is every optional row (the keep list a
+      // bulk action may write), `visibleOptional` only what the filter left
+      // shown (the rows a bulk action may move) — so a keyword never clears a
+      // hidden row's decision.
+      const optional = rows.filter((row) => row.required !== true).map((row) => row.name)
+      const visibleOptional = ranked.filter((row) => row.required !== true).map((row) => row.name)
+      // `checked` also carries the required rows that currently inject; the two
+      // bulk actions move only the optional half, so required names are
+      // narrowed out here rather than relying on the caller to drop them.
+      const writeOptional = (next) => props.onChange(next.filter((name) => optional.includes(name)))
       return h(
         'div',
-        { className: 'aps-tagEditor', onClick: () => inputRef.current?.focus() },
-        values.map((entry, index) =>
-          h(
-            'span',
-            { key: `${String(entry)}\u0000${index}`, className: 'aps-tag' },
-            h('span', { className: 'aps-tagText' }, String(entry)),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'aps-tagRemove',
-                'aria-label': format(props.t('tagRemove'), { name: String(entry) }),
-                onMouseDown: (event) => event.preventDefault(),
-                onClick: (event) => {
-                  event.stopPropagation?.()
-                  removeAt(index)
-                },
-              },
-              '\u00d7',
-            ),
-          ),
+        null,
+        h(
+          'div',
+          { className: 'aps-filter aps-sectionFilter' },
+          h('input', {
+            className: 'aps-input',
+            type: 'search',
+            value: filter,
+            placeholder: t('sectionFilterPlaceholder'),
+            'aria-label': t('sectionFilterPlaceholder'),
+            onChange: (event) => {
+              setFilter(event.target.value)
+              // A new keyword re-shuffles the visible set, so re-rank it
+              // against the current selection.
+              setOrderBasis([...checked])
+            },
+          }),
+          filterKey === ''
+            ? null
+            : h(
+                'p',
+                { className: 'aps-hint' },
+                format(t('sectionFilterCount'), { shown: ranked.length, total: rows.length }),
+              ),
         ),
-        h('input', {
-          ref: inputRef,
-          className: 'aps-tagInput',
-          type: 'text',
-          value: text,
-          placeholder: props.placeholder,
-          'aria-label': props.ariaLabel,
-          autoComplete: 'off',
-          spellCheck: false,
-          onChange: (event) => handleText(event.target.value),
-          onCompositionStart: () => {
-            composing.current = true
-          },
-          onCompositionEnd: (event) => {
-            composing.current = false
-            handleText(event.target.value)
-          },
-          onPaste: (event) => {
-            // A pasted list normally has no trailing separator, so the default
-            // caret insertion would leave every item but the last in the box
-            // until Enter. Paste-with-separators commits the whole list.
-            const pasted = event?.clipboardData?.getData?.('text') ?? ''
-            if (/[,，、\n]/.test(pasted) === false) return
-            event.preventDefault?.()
-            commit(pasted)
-          },
-          onKeyDown,
-          onBlur: () => commit(text),
-        }),
+        // Select-all / deselect-all act on the SHOWN rows only: with a filter
+        // active they touch what the filter left visible and never the hidden
+        // rest — the same rule the tool checklist follows.
+        ranked.length === 0
+          ? null
+          : h(
+              'div',
+              { className: 'aps-inlineActions' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'aps-linkButton',
+                  onClick: () => writeOptional([...checked, ...visibleOptional]),
+                },
+                t('selectAll'),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'aps-linkButton',
+                  onClick: () => writeOptional(checked.filter((name) => visibleOptional.includes(name) === false)),
+                },
+                t('clearSelection'),
+              ),
+              h('span', { className: 'aps-hint' }, format(t('selectedCount'), { count: checked.length })),
+            ),
+        props.registryReadable === false
+          ? h('p', { className: 'aps-hint' }, t('sectionsRegistryUnavailable'))
+          : null,
+        ranked.length === 0
+          ? h('p', { className: 'aps-hint' }, t('sectionFilterNone'))
+          : h(
+              'div',
+              { className: 'aps-checklist' },
+              ranked.map((row) =>
+                h('div', { key: row.name },
+                  h(
+                    'label',
+                    { className: 'aps-checkRow' },
+                    h('input', {
+                      type: 'checkbox',
+                      // A required row reports whether it INJECTS — false once the
+                      // force-box below removes it; it stays disabled because this
+                      // box is a readout, not the control.
+                      checked:
+                        row.required !== true
+                          ? checked.includes(row.name)
+                          : forced.includes(row.name) === false,
+                      disabled: row.required === true,
+                      onChange: () => props.onToggle(row.name),
+                    }),
+                    h(
+                      'span',
+                      { className: 'aps-checkBody' },
+                      h('span', { className: 'aps-rowName' }, row.name),
+                      // The same `aps-fact` pill the context list uses for its
+                      // required rows: a section name is a technical identifier, and
+                      // the pill is what says why it cannot be unchecked.
+                      row.required !== true
+                        ? null
+                        : h(
+                            'span',
+                            { className: 'aps-rowMeta' },
+                            h('span', { className: 'aps-fact' }, t('sectionsRequiredTag')),
+                            forced.includes(row.name)
+                              ? h('span', { className: 'aps-fact' }, t('sectionsSuppressedTag'))
+                              : null,
+                          ),
+                    ),
+                  ),
+                  // The opt-in escape hatch, offered exactly where the runtime
+                  // protects a name: a required persona row.
+                  row.required !== true
+                    ? null
+                    : h(
+                        'label',
+                        { className: 'aps-checkRow aps-checkNested' },
+                        h('input', {
+                          type: 'checkbox',
+                          checked: forced.includes(row.name),
+                          onChange: () => props.onToggleForce(row.name),
+                        }),
+                        h(
+                          'span',
+                          { className: 'aps-checkBody' },
+                          // The control names its row: every required row gets one
+                          // of these, and without the name the operator cannot tell
+                          // which persona section they are about to remove.
+                          h('span', { className: 'aps-rowMeta' }, `${t('sectionsForceLabel')} · ${row.name}`),
+                          forced.includes(row.name) ? h('span', { className: 'aps-warn' }, t('sectionsForceHint')) : null,
+                        ),
+                      ),
+                ),
+            ),
+        ),
+        h('p', { className: 'aps-hint' }, t('sectionsClearHint')),
       )
     }
 
@@ -1322,12 +1373,12 @@ window.__ModuleLoader__.load({
     function InspectPanel(props) {
       const t = props.t
       const view = props.view
-      // The custom-blocking filter is part of the runtime view: the Host
-      // classifies live sections against the DRAFT rule set, so the panel must
-      // show that partition next to the tool and context counts. Append/replace
-      // never filter sections, so the block is silent there. An answer without
-      // `sectionFilter` (an older Host) renders nothing rather than claiming 0.
-      const sectionRules = props.customBlock === true ? view?.sectionFilter : undefined
+      // The section checklist is part of the runtime view: the Host partitions
+      // live sections against the DRAFT keep list, so the panel shows that
+      // partition next to the tool and context counts. Append/replace never
+      // filter sections, so the block is silent there. An answer without
+      // `sectionFilter` renders nothing rather than claiming 0.
+      const sectionFilter = props.custom === true ? view?.sectionFilter : undefined
       return h(
         'div',
         { className: 'aps-inspect' },
@@ -1407,62 +1458,51 @@ window.__ModuleLoader__.load({
                     ? h('p', { className: 'aps-hint' }, t('inspectSkillsOff'))
                     : null,
                 ),
-                // The `custom-official` rule partition, shown with the same fact
-                // chips as the tool and context counts. The rule counts are the
-                // MERGED set (built-ins + the draft chips), which is what the
-                // filter will really run with after a save.
-                sectionRules === undefined
+                // The section partition, shown with the same fact chips as
+                // the tool and context counts. `managed: false` is the honest
+                // "everything injects" answer an untouched preset produces;
+                // an unreadable registry says so instead of claiming 0.
+                sectionFilter === undefined
                   ? null
                   : h(
                       'div',
                       { className: 'aps-inspectCount' },
-                      h(
-                        'span',
-                        { className: 'aps-fact' },
-                        format(t('inspectSectionRules'), {
-                          prefixes: sectionRules.rules?.prefixes ?? 0,
-                          names: sectionRules.rules?.names ?? 0,
-                          keep: sectionRules.rules?.keep ?? 0,
-                        }),
-                      ),
-                      sectionRules.available === true
+                      sectionFilter.available === false
+                        ? h('span', { className: 'aps-fact' }, t('inspectSectionsUnavailable'))
+                        : sectionFilter.managed === false
+                          ? h('span', { className: 'aps-fact' }, t('inspectSectionsUnmanaged'))
+                          : h(
+                              'span',
+                              { className: 'aps-fact' },
+                              format(t('inspectSections'), { count: sectionFilter.kept ?? 0 }),
+                            ),
+                      sectionFilter.available === true &&
+                      sectionFilter.managed === true &&
+                      (sectionFilter.blocked ?? 0) > 0
                         ? h(
                             'span',
                             { className: 'aps-fact' },
-                            format(t('inspectBlockedSections'), { count: sectionRules.blocked ?? 0 }),
+                            format(t('inspectSectionsBlocked'), { count: sectionFilter.blocked }),
                           )
                         : null,
-                      sectionRules.available === true
-                        ? h(
-                            'span',
-                            { className: 'aps-fact' },
-                            format(t('inspectKeptSections'), { count: sectionRules.kept ?? 0 }),
-                          )
-                        : null,
-                    ),
-                sectionRules === undefined
-                  ? null
-                  : h(
-                      'p',
-                      { className: 'aps-hint' },
-                      sectionRules.available === true
-                        ? t('inspectSectionRulesHint')
-                        : t('inspectSectionRulesUnavailable'),
                     ),
                 // The names behind the counts, in the same scrollable list as
                 // tools and contexts: a count alone cannot tell an operator
                 // whether the section they meant to block actually moved.
-                sectionRules === undefined
+                sectionFilter === undefined ||
+                sectionFilter.available !== true ||
+                sectionFilter.managed !== true ||
+                (sectionFilter.blocked ?? 0) === 0
                   ? null
                   : h(NameList, {
-                      title: t('inspectBlockedSectionsList'),
-                      names: sectionRules.blockedList,
+                      title: t('inspectSectionsBlockedList'),
+                      names: sectionFilter.blockedList,
                     }),
-                sectionRules === undefined
+                sectionFilter === undefined || sectionFilter.available !== true
                   ? null
                   : h(NameList, {
-                      title: t('inspectKeptSectionsList'),
-                      names: sectionRules.keptList,
+                      title: t('inspectSectionsList'),
+                      names: sectionFilter.keptList,
                     }),
                 (view.listedUnavailable ?? []).length > 0
                   ? h(
@@ -1914,7 +1954,11 @@ window.__ModuleLoader__.load({
       // Toggling a box re-orders nothing: the list keeps the order of the
       // selection it opened with, and a save (which remounts the editor) is
       // what makes the newly checked rows float back to the top.
-      const [orderBasis] = useState(() => [...checked])
+      const [orderBasis, setOrderBasis] = useState(() => [...checked])
+      // Same filter box the tool checklist carries: one keyword matched against
+      // the readable label, the technical name and the description, with the
+      // visible set re-ranked against the live selection on every change.
+      const [filter, setFilter] = useState('')
       if (rows.length === 0) return h('p', { className: 'aps-hint' }, t('noContexts'))
       // Two facts the list cannot show by itself: a required row this plugin's
       // catalog never carried (the running registry protects it anyway), and a
@@ -1934,12 +1978,27 @@ window.__ModuleLoader__.load({
             )
       // Checked rows float to the top — ranked against `orderBasis` rather than
       // the live `checked` array so the list holds still while it is edited.
-      const ranked = [...rows].sort((left, right) => {
+      const filterKey = filter.trim().toLowerCase()
+      const visibleRows =
+        filterKey === ''
+          ? rows
+          : rows.filter(
+              (row) =>
+                String(row.name ?? '').toLowerCase().includes(filterKey) ||
+                String(row.label ?? '').toLowerCase().includes(filterKey) ||
+                String(row.description ?? '').toLowerCase().includes(filterKey),
+            )
+      const ranked = [...visibleRows].sort((left, right) => {
         const leftRank = orderBasis.includes(left.name) ? 0 : 1
         const rightRank = orderBasis.includes(right.name) ? 0 : 1
         return leftRank - rightRank
       })
-      const optional = ranked.filter((row) => row.required !== true).map((row) => row.name)
+      // Two optional halves: `optional` is every optional row (the keep list a
+      // bulk action may write), `visibleOptional` only what the filter left
+      // shown (the rows a bulk action may move) — so a keyword never clears a
+      // hidden row's decision.
+      const optional = rows.filter((row) => row.required !== true).map((row) => row.name)
+      const visibleOptional = ranked.filter((row) => row.required !== true).map((row) => row.name)
       // `checked` also carries the required rows that currently inject; the two
       // bulk actions move only the optional half, so required names are
       // narrowed out here rather than relying on the caller to drop them.
@@ -1949,115 +2008,146 @@ window.__ModuleLoader__.load({
         null,
         h(
           'div',
-          { className: 'aps-inlineActions' },
-          h(
-            'button',
-            {
-              type: 'button',
-              className: 'aps-linkButton',
-              onClick: () => writeOptional([...checked, ...optional]),
+          { className: 'aps-filter aps-contextFilter' },
+          h('input', {
+            className: 'aps-input',
+            type: 'search',
+            value: filter,
+            placeholder: t('contextFilterPlaceholder'),
+            'aria-label': t('contextFilterPlaceholder'),
+            onChange: (event) => {
+              setFilter(event.target.value)
+              // A new keyword re-shuffles the visible set, so re-rank it
+              // against the current selection.
+              setOrderBasis([...checked])
             },
-            t('selectAll'),
-          ),
-          h(
-            'button',
-            {
-              type: 'button',
-              className: 'aps-linkButton',
-              onClick: () => writeOptional([]),
-            },
-            t('clearSelection'),
-          ),
-          h('span', { className: 'aps-hint' }, format(t('selectedCount'), { count: checked.length })),
+          }),
+          filterKey === ''
+            ? null
+            : h(
+                'p',
+                { className: 'aps-hint' },
+                format(t('contextFilterCount'), { shown: ranked.length, total: rows.length }),
+              ),
         ),
+        // Select-all / deselect-all act on the SHOWN rows only: with a filter
+        // active they touch what the filter left visible and never the hidden
+        // rest — the same rule the tool checklist follows.
+        ranked.length === 0
+          ? null
+          : h(
+              'div',
+              { className: 'aps-inlineActions' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'aps-linkButton',
+                  onClick: () => writeOptional([...checked, ...visibleOptional]),
+                },
+                t('selectAll'),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'aps-linkButton',
+                  onClick: () => writeOptional(checked.filter((name) => visibleOptional.includes(name) === false)),
+                },
+                t('clearSelection'),
+              ),
+              h('span', { className: 'aps-hint' }, format(t('selectedCount'), { count: checked.length })),
+            ),
         registryHint,
         runtimeHint,
-        h(
-          'div',
-          { className: 'aps-checklist' },
-          ranked.map((row) =>
-            h(
+        ranked.length === 0
+          ? h('p', { className: 'aps-hint' }, t('contextFilterNone'))
+          : h(
               'div',
-              { key: row.name },
-              h(
-                'label',
-                { className: 'aps-checkRow' },
-                h('input', {
-                  type: 'checkbox',
-                  // A required row reports whether it INJECTS — false once the
-                  // hatch below forces it off. It stays disabled because this
-                  // box is a readout, not the control: the control is the
-                  // 「高级」 box, which is the only thing that can beat DSH's
-                  // force-restore.
-                  // A required row reports whether it INJECTS. Under a Host that
-                  // cannot force, a stored suppression is inert — so it still
-                  // injects, and the readout says so rather than echoing the
-                  // stored field.
-                  checked:
-                    row.required !== true
-                      ? checked.includes(row.name)
-                      : canForce === false || forced.includes(row.name) === false,
-                  disabled: row.required === true,
-                  onChange: () => props.onToggle(row.name),
-                }),
+              { className: 'aps-checklist' },
+              ranked.map((row) =>
                 h(
-                  'span',
-                  { className: 'aps-checkBody' },
-                  // Every class here is one this page already ships: the row
-                  // scaffold is the tool checklist's (`aps-checkRow` /
-                  // `aps-checkBody` / `aps-checkDesc`), and the two text lines are
-                  // the skill list's (`aps-rowName` for the readable label,
-                  // `aps-rowMeta` for the mono technical name). The tag pill
-                  // reuses `aps-fact`, exactly how the tool rows mark 全局/内置.
-                  h('span', { className: 'aps-rowName' }, row.label !== '' ? row.label : row.name),
+                  'div',
+                  { key: row.name },
                   h(
-                    'span',
-                    { className: 'aps-rowMeta' },
-                    row.name,
-                    ' ',
-                    row.required !== true
-                      ? row.known === false
-                        ? h('span', { className: 'aps-fact' }, t('contextsForeignTag'))
-                        : null
-                      : forced.includes(row.name) && canForce === false
-                        ? // Stored suppression the running Host cannot apply:
-                          // say so instead of showing a checked box that lies.
-                          h('span', { className: 'aps-fact' }, t('contextsForceUnavailable'))
-                        : forced.includes(row.name)
-                          ? h('span', { className: 'aps-fact' }, t('contextsForcedTag'))
-                        : row.known === false
-                          ? // Protected by the RUNNING registry, not by this
-                            // plugin's catalog: name that fact, because the row
-                            // appeared without the operator adding anything.
-                            h('span', { className: 'aps-fact' }, t('contextsRuntimeRequiredTag'))
-                          : h('span', { className: 'aps-fact' }, t('contextsRequiredTag')),
-                  ),
-                  row.description !== '' ? h('span', { className: 'aps-checkDesc' }, row.description) : null,
-                ),
-              ),
-              // The opt-in escape hatch, and the honest cost next to it. Only a
-              // required row gets one — anything else is already switchable
-              // above.
-              row.required !== true || canForce === false
-                ? null
-                : h(
                     'label',
-                    { className: 'aps-checkRow aps-checkNested' },
+                    { className: 'aps-checkRow' },
                     h('input', {
                       type: 'checkbox',
-                      checked: forced.includes(row.name),
-                      onChange: () => props.onToggleForce(row.name),
+                      // A required row reports whether it INJECTS — false once the
+                      // hatch below forces it off. It stays disabled because this
+                      // box is a readout, not the control: the control is the
+                      // 「高级」 box, which is the only thing that can beat DSH's
+                      // force-restore.
+                      // A required row reports whether it INJECTS. Under a Host that
+                      // cannot force, a stored suppression is inert — so it still
+                      // injects, and the readout says so rather than echoing the
+                      // stored field.
+                      checked:
+                        row.required !== true
+                          ? checked.includes(row.name)
+                          : canForce === false || forced.includes(row.name) === false,
+                      disabled: row.required === true,
+                      onChange: () => props.onToggle(row.name),
                     }),
                     h(
                       'span',
                       { className: 'aps-checkBody' },
-                      h('span', { className: 'aps-rowMeta' }, t('contextsForceLabel')),
-                      forced.includes(row.name) ? h('span', { className: 'aps-warn' }, t('contextsForceWarn')) : null,
+                      // Every class here is one this page already ships: the row
+                      // scaffold is the tool checklist's (`aps-checkRow` /
+                      // `aps-checkBody` / `aps-checkDesc`), and the two text lines are
+                      // the skill list's (`aps-rowName` for the readable label,
+                      // `aps-rowMeta` for the mono technical name). The tag pill
+                      // reuses `aps-fact`, exactly how the tool rows mark 全局/内置.
+                      h('span', { className: 'aps-rowName' }, row.label !== '' ? row.label : row.name),
+                      h(
+                        'span',
+                        { className: 'aps-rowMeta' },
+                        row.name,
+                        ' ',
+                        row.required !== true
+                          ? row.known === false
+                            ? h('span', { className: 'aps-fact' }, t('contextsForeignTag'))
+                            : null
+                          : forced.includes(row.name) && canForce === false
+                            ? // Stored suppression the running Host cannot apply:
+                              // say so instead of showing a checked box that lies.
+                              h('span', { className: 'aps-fact' }, t('contextsForceUnavailable'))
+                            : forced.includes(row.name)
+                              ? h('span', { className: 'aps-fact' }, t('contextsForcedTag'))
+                            : row.known === false
+                              ? // Protected by the RUNNING registry, not by this
+                                // plugin's catalog: name that fact, because the row
+                                // appeared without the operator adding anything.
+                                h('span', { className: 'aps-fact' }, t('contextsRuntimeRequiredTag'))
+                              : h('span', { className: 'aps-fact' }, t('contextsRequiredTag')),
+                      ),
+                      row.description !== '' ? h('span', { className: 'aps-checkDesc' }, row.description) : null,
                     ),
                   ),
+                  // The opt-in escape hatch, and the honest cost next to it. Only a
+                  // required row gets one — anything else is already switchable
+                  // above.
+                  row.required !== true || canForce === false
+                    ? null
+                    : h(
+                        'label',
+                        { className: 'aps-checkRow aps-checkNested' },
+                        h('input', {
+                          type: 'checkbox',
+                          checked: forced.includes(row.name),
+                          onChange: () => props.onToggleForce(row.name),
+                        }),
+                        h(
+                          'span',
+                          { className: 'aps-checkBody' },
+                          h('span', { className: 'aps-rowMeta' }, t('contextsForceLabel')),
+                          forced.includes(row.name) ? h('span', { className: 'aps-warn' }, t('contextsForceWarn')) : null,
+                        ),
+                      ),
+                ),
+              ),
             ),
-          ),
-        ),
         h('p', { className: 'aps-hint' }, t('contextsClearHint')),
       )
     }
@@ -2078,43 +2168,32 @@ window.__ModuleLoader__.load({
       const inspectSeq = useRef(0)
       const firstInspect = useRef(true)
       const patch = (change) => props.onChange({ ...draft, ...change })
-      // --- the `custom-official` rule set -----------------------------------
-      // Three optional lists on the preset, edited as chips. An EMPTY or ABSENT
-      // field means "the built-in namespaces", so an untouched field shows no
-      // chips and the built-in lists are stated in the note below the fields —
-      // pre-filling them would make an unedited field look edited. A chip
-      // writes the PARSED array the Host stores; removing every chip writes
-      // `[]`, which the Host reads as "no override", never as "inherit the
-      // previous value".
-      const ruleDefaults = meta.sectionRuleDefaults ?? {}
-      const ruleValuesOf = (field) => (Array.isArray(draft[field]) ? draft[field] : [])
-      // The rule is ADDITIVE: the built-in namespaces are merged in by the Host
-      // no matter what these fields say, so removing one chip cannot switch it
-      // off. Say it out loud the moment a field stops listing one — otherwise
-      // "I removed ui: and it still gets filtered" looks like a bug.
-      // An EMPTY field is not "I dropped everything" — it is "use the built-in
-      // list", which is exactly what the Host does. Only a field that carries
-      // entries can be missing one, so the notice is silent while it is empty.
-      const typedPrefixes = ruleValuesOf('sectionRulePrefixes')
-      const typedNames = ruleValuesOf('sectionRuleNames')
-      const typedNameSet = new Set(typedNames)
-      // Prefixes are PLAIN prefixes, so a typed prefix COVERS a built-in entry
-      // when the built-in starts with it: `deployment` covers the built-in
-      // `deployment:` (and anything else with that prefix). Comparing verbatim
-      // would wrongly report the built-in as missing.
-      const coversDefaultPrefix = (prefix) =>
-        typedPrefixes.some((typed) => {
-          const value = normalizePrefix(typed)
-          return value !== '' && normalizePrefix(prefix).startsWith(value)
+      // --- the section checklist ---------------------------------------------
+      // Checked = injected. The catalog is read live from the running build,
+      // and an ABSENT `sections` field means "this preset manages nothing",
+      // which shows as the fully-checked list the runtime actually injects.
+      // Required rows are the preset's own persona sections; only the ADVANCED
+      // force list may remove them.
+      const sectionCatalog = meta.sectionCatalog ?? []
+      const sectionState = sectionSelectionState(draft, sectionCatalog)
+      const checkedSections = sectionState.checked
+      // Only the optional half is written to `sections`: a required name parked
+      // there would be a dead entry, since its removal is decided by the
+      // advanced list alone. That also keeps 全选 / 取消全选 honest.
+      const setSectionNames = (next) =>
+        patch({ sections: [...new Set(next.filter((name) => sectionState.optional.includes(name)))] })
+      const toggleSection = (name) =>
+        setSectionNames(
+          checkedSections.includes(name)
+            ? checkedSections.filter((entry) => entry !== name)
+            : [...checkedSections, name],
+        )
+      const toggleSectionForce = (name) =>
+        patch({
+          sectionsSuppressed: sectionState.forced.includes(name)
+            ? sectionState.forced.filter((entry) => entry !== name)
+            : [...sectionState.forced, name],
         })
-      const droppedDefaults = [
-        ...(typedPrefixes.length === 0
-          ? []
-          : (ruleDefaults.prefixes ?? []).filter((prefix) => coversDefaultPrefix(prefix) === false)),
-        ...(typedNames.length === 0
-          ? []
-          : (ruleDefaults.names ?? []).filter((name) => typedNameSet.has(name) === false)),
-      ]
       const toggleGroup = (key) =>
         setOpenGroups((current) =>
           current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
@@ -2171,11 +2250,11 @@ window.__ModuleLoader__.load({
           // field: an unmanaged preset derives "everything", which is exactly
           // what it injects, so the panel's kept/blocked split matches the
           // runtime instead of falling back to the last save.
-          // The `custom-official` rules ride along for the same reason: the Host
-          // re-classifies live sections against THESE chips, so the leak
-          // warning follows every add/remove instead of the last save. An
-          // emptied field is sent as `[]` and the Host falls back to the
-          // built-ins, exactly as saving would.
+          // The section checklist rides along for the same reason: the Host
+          // re-partitions live sections against THESE names, so the kept /
+          // blocked split follows every toggle instead of the last save. A
+          // draft that manages nothing sends `null`, which overrides the
+          // stored list instead of falling back to it.
           const value = await callApi('inspect', {
             id: draft.id,
             config: {
@@ -2183,9 +2262,10 @@ window.__ModuleLoader__.load({
               skills: draft.skills ?? [],
               contexts: contextState.checked,
               requiredSuppressed: contextState.forced,
-              sectionRulePrefixes: ruleValuesOf('sectionRulePrefixes'),
-              sectionRuleNames: ruleValuesOf('sectionRuleNames'),
-              sectionRuleKeep: ruleValuesOf('sectionRuleKeep'),
+              // `null` is explicit: the draft does not manage sections, and
+              // must NOT fall back to the stored list inside the Host.
+              sections: Array.isArray(draft.sections) ? sectionWhitelistOf(draft, sectionCatalog) : null,
+              sectionsSuppressed: sectionState.forced,
             },
           })
           if (seq !== inspectSeq.current) return
@@ -2202,10 +2282,10 @@ window.__ModuleLoader__.load({
       // Auto-load the runtime view on entry, then re-read (debounced) after
       // every tool-list, skill or snapshot change — no manual click needed. A
       // brand-new preset has no id yet, so there is no scope to read: keep the
-      // hint. The snapshot part of the key uses the DERIVED checked names, the
-      // same list `runInspect` sends, so an unmanaged → managed transition and
-      // every individual toggle both re-read exactly once.
-      const inspectKey = `${draft.id}\u0000${selection.mode}\u0000${selection.names.join(',')}\u0000${(draft.skills ?? []).join(',')}\u0000${checkedContexts.join(',')}\u0000${contextState.forced.join(',')}\u0000${(draft.sectionRulePrefixes ?? []).join(',')}\u0000${(draft.sectionRuleNames ?? []).join(',')}\u0000${(draft.sectionRuleKeep ?? []).join(',')}`
+      // hint. The snapshot and section parts of the key use the DERIVED checked
+      // names, the same lists `runInspect` sends, so an unmanaged → managed
+      // transition and every individual toggle both re-read exactly once.
+      const inspectKey = `${draft.id}\u0000${selection.mode}\u0000${selection.names.join(',')}\u0000${(draft.skills ?? []).join(',')}\u0000${checkedContexts.join(',')}\u0000${contextState.forced.join(',')}\u0000${draft.instructionMode}\u0000${checkedSections.join(',')}\u0000${sectionState.forced.join(',')}`
       useEffect(() => {
         if (draft.id === '') {
           setView(null)
@@ -2292,8 +2372,8 @@ window.__ModuleLoader__.load({
                 hint:
                   draft.instructionMode === 'complete'
                     ? t('modeCompleteHint')
-                    : draft.instructionMode === 'custom-official'
-                      ? t('modeCustomBlockHint')
+                    : draft.instructionMode === 'custom'
+                      ? t('modeCustomHint')
                       : t('modeAppendHint'),
               },
               h(Segmented, {
@@ -2302,91 +2382,31 @@ window.__ModuleLoader__.load({
                 options: [
                   { value: 'append', label: t('modeAppend') },
                   { value: 'complete', label: t('modeComplete') },
-                  { value: 'custom-official', label: t('modeCustomBlock') },
+                  { value: 'custom', label: t('modeCustom') },
                 ],
                 onChange: (value) => patch({ instructionMode: value }),
               }),
             ),
-            // The rule set only means anything in `custom-official` mode, so its
-            // three chip fields appear exactly then — the same place the mode
-            // is chosen, using the same Field scaffold as every other row.
-            ...(draft.instructionMode === 'custom-official'
+            // The checklist only means anything in `custom` mode, so it appears
+            // exactly then — the same place the mode is chosen, using the same
+            // Field scaffold and checklist markup as the runtime-context list.
+            ...(draft.instructionMode === 'custom'
               ? [
                   h(
                     Field,
                     {
-                      key: 'official-prefixes',
-                      label: t('officialPrefixes'),
-                      hint: format(t('officialPrefixesHint'), { count: (ruleDefaults.prefixes ?? []).length }),
-                      example: t('officialPrefixesExample'),
+                      key: 'sections',
+                      label: t('sections'),
+                      hint: t('sectionsHint'),
                     },
-                    h(TagInput, {
+                    h(SectionPicker, {
                       t,
-                      value: ruleValuesOf('sectionRulePrefixes'),
-                      keyOf: normalizePrefix,
-                      onChange: (next) => patch({ sectionRulePrefixes: next }),
-                      placeholder: t('officialPrefixesPlaceholder'),
-                      ariaLabel: t('officialPrefixes'),
-                    }),
-                  ),
-                  h(
-                    Field,
-                    {
-                      key: 'official-names',
-                      label: t('officialNames'),
-                      hint: t('officialNamesHint'),
-                      example: t('officialNamesExample'),
-                    },
-                    h(TagInput, {
-                      t,
-                      value: ruleValuesOf('sectionRuleNames'),
-                      onChange: (next) => patch({ sectionRuleNames: next }),
-                      placeholder: t('officialNamesPlaceholder'),
-                      ariaLabel: t('officialNames'),
-                    }),
-                  ),
-                  h(
-                    Field,
-                    {
-                      key: 'official-keep',
-                      label: t('officialKeep'),
-                      hint: t('officialKeepHint'),
-                      example: t('officialKeepExample'),
-                    },
-                    h(TagInput, {
-                      t,
-                      value: ruleValuesOf('sectionRuleKeep'),
-                      onChange: (next) => patch({ sectionRuleKeep: next }),
-                      placeholder: t('officialKeepPlaceholder'),
-                      ariaLabel: t('officialKeep'),
-                    }),
-                  ),
-                  ...(droppedDefaults.length === 0
-                    ? []
-                    : [
-                        h(
-                          'p',
-                          { key: 'official-dropped-note', className: 'aps-hint' },
-                          format(t('officialDroppedHint'), {
-                            names: droppedDefaults.join(t('contextsNameSeparator')),
-                          }),
-                        ),
-                      ]),
-                  h(
-                    'p',
-                    { key: 'official-rules-note', className: 'aps-hint' },
-                    t('officialRulesSectionHint'),
-                  ),
-                  // The chip fields do not prefill, so the built-in lists are
-                  // stated here instead: an operator can still see what the
-                  // filter does by default without the page pretending the
-                  // field has been edited.
-                  h(
-                    'p',
-                    { key: 'official-defaults-note', className: 'aps-hint' },
-                    format(t('officialDefaultsList'), {
-                      prefixes: (ruleDefaults.prefixes ?? []).join(t('contextsNameSeparator')),
-                      names: (ruleDefaults.names ?? []).join(t('contextsNameSeparator')),
+                      rows: sectionCatalog,
+                      checked: checkedSections,
+                      forced: sectionState.forced,
+                      onChange: setSectionNames,
+                      onToggle: toggleSection,
+                      onToggleForce: toggleSectionForce,
                     }),
                   ),
                 ]
@@ -2603,7 +2623,7 @@ window.__ModuleLoader__.load({
             view,
             busy: inspecting,
             unsaved: draft.id === '',
-            customBlock: draft.instructionMode === 'custom-official',
+            custom: draft.instructionMode === 'custom',
             onRun: runInspect,
           }),
         ),
@@ -2668,22 +2688,19 @@ window.__ModuleLoader__.load({
       }
       const save = () =>
         run(async () => {
-          // The snapshot list is saved as what the panel SHOWED (its derived
-          // checked names), for a new and an existing preset alike. An
-          // unmanaged preset therefore persists the fully-checked list it was
-          // displaying — the same behavior, now explicit and editable — instead
-          // of silently staying unmanaged behind the user's back. The catalog
-          // already folds in every name observed for any preset, so a
-          // third-party row that exists in this process cannot be dropped by
-          // the write. When the catalog is empty the field is left exactly as
-          // the draft has it: writing an empty whitelist from a page that was
-          // shown no rows would block every optional context by accident.
+          // An UNMANAGED list stays unmanaged. Saving used to write the
+          // fully-checked list the panel showed, which turned "everything
+          // injects" into a frozen snapshot of the rows that happened to exist
+          // at that moment. The catalog grows on its own (a plugin registers a
+          // section, a running Agent reports a new snapshot context), so the
+          // frozen list silently excluded every later row — an existing preset
+          // then opened with those rows unchecked while a NEW preset showed
+          // them checked. Only an explicit edit (a checkbox or a bulk action,
+          // both of which write the array) makes the list strict; undefined
+          // keeps meaning "inject everything", for old and new presets alike.
+          // When the catalog is empty the page cannot tell optional from
+          // required, so it must not compute either half at all.
           const catalog = state.meta?.contextCatalog ?? []
-          // NO catalog means the page never saw which names are optional and
-          // which are required, so it cannot recompute either half — rewriting
-          // them from an empty view would silently blank a stored whitelist
-          // (blocking every optional context) or drop an existing force list.
-          // Send the draft's own fields untouched and let the Host keep them.
           const catalogKnown = catalog.length > 0
           const forceSupported = (state.meta?.capabilities ?? []).includes('requiredSuppression')
           const forcedRows = catalog.filter((row) => row.required === true).map((row) => row.name)
@@ -2694,13 +2711,31 @@ window.__ModuleLoader__.load({
           // or was forced before: an absent field is the plain,
           // contract-respecting state, and leaving it absent keeps legacy
           // documents clean.
+          // The section checklist follows the same rule as the snapshot list:
+          // undefined stays undefined, an array stays a strict keep list. An
+          // empty catalog means the page could not tell optional from required,
+          // so nothing is computed at all.
+          const sectionCatalog = state.meta?.sectionCatalog ?? []
+          const sectionKnown = sectionCatalog.length > 0
+          const sectionRequired = sectionCatalog.filter((row) => row.required === true).map((row) => row.name)
+          const draftSectionForced = (Array.isArray(draft.sectionsSuppressed) ? draft.sectionsSuppressed : []).filter(
+            (name) => sectionRequired.includes(name),
+          )
           const payload = {
             ...draft,
-            ...(catalogKnown ? { contexts: contextWhitelistOf(draft, catalog) } : {}),
+            ...(catalogKnown && Array.isArray(draft.contexts)
+              ? { contexts: contextWhitelistOf(draft, catalog) }
+              : {}),
             ...(catalogKnown &&
               (draftForced.length > 0 || Array.isArray(draft.requiredSuppressed)) &&
               forceSupported
               ? { requiredSuppressed: draftForced }
+              : {}),
+            ...(sectionKnown && Array.isArray(draft.sections)
+              ? { sections: sectionWhitelistOf(draft, sectionCatalog) }
+              : {}),
+            ...(sectionKnown && (draftSectionForced.length > 0 || Array.isArray(draft.sectionsSuppressed))
+              ? { sectionsSuppressed: draftSectionForced }
               : {}),
           }
           const result = await callApi('save', payload)
@@ -2752,6 +2787,10 @@ window.__ModuleLoader__.load({
             requiredSuppressed: Array.isArray(preset.requiredSuppressed)
               ? [...preset.requiredSuppressed]
               : preset.requiredSuppressed,
+            sections: Array.isArray(preset.sections) ? [...preset.sections] : preset.sections,
+            sectionsSuppressed: Array.isArray(preset.sectionsSuppressed)
+              ? [...preset.sectionsSuppressed]
+              : preset.sectionsSuppressed,
             skills: [...(preset.skills ?? [])],
             tools: { mode: 'all', names: [], ...(preset.tools ?? {}) },
             enabled: preset.enabled !== false,

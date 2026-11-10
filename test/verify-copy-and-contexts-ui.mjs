@@ -256,8 +256,11 @@ console.log('# 勾选变化 → 保存载荷')
   assert(!('requiredSuppressed' in body), 'an untouched hatch stays absent — the contract holds')
 }
 {
-  // An unmanaged preset OPENS fully checked (that is what it injects) and its
-  // first save materialises exactly the catalog the page showed.
+  // An unmanaged preset OPENS fully checked (that is what it injects) and an
+  // untouched save leaves it unmanaged: materialising today's catalog into a
+  // whitelist would freeze the rows that happen to exist now, so every row a
+  // plugin registers (or a running Agent reports) later would open UNCHECKED
+  // here while a new preset shows it checked.
   const studio = mountStudio({ presets: [UNMANAGED], meta: META })
   let tree = await openEditor(studio, await studio.root.settle(), 0)
   const rows = mainRowsIn(tree)
@@ -266,10 +269,7 @@ console.log('# 勾选变化 → 保存载荷')
   await labelled(tree, '保存')[0].props.onClick()
   tree = await studio.root.flush()
   const body = saves(studio)[0]
-  // `contexts` carries ONLY the optional half now; required names live in the
-  // advanced list, and an untouched one is not written at all.
-  const optionalNames = CATALOG.filter((i) => !i.required).map((i) => i.name)
-  assert.deepEqual([...body.contexts].sort(), optionalNames.sort(), 'saving persists the optional rows it showed')
+  assert.equal(body.contexts, undefined, 'an untouched snapshot list stays unmanaged, not a frozen whitelist')
   assert(!('requiredSuppressed' in body), 'the advanced list stays absent when nothing was forced')
   // 取消全选 moves the optional rows and never the required ones.
   const after = await openEditor(studio, await studio.root.settle(), 0)

@@ -9,7 +9,7 @@
  * recorded Host API) lives in `_studio-harness.mjs` and is shared with the
  * copy/snapshot UI regression. Export is not a one-click clipboard write: the
  * click opens a selection dialog whose rows are all checked by default, and
- * the copy happens on the 「复制基础信息到剪贴板」 footer button — `runExport`
+ * the copy happens on the 「复制基础信息」 footer button — `runExport`
  * drives both steps.
  *
  * Run: node test/verify-export-clipboard.mjs
@@ -75,14 +75,14 @@ const exportButtonIn = (tree) =>
   findNodes(tree, (n) => n.type === 'button' && textOf(n) === '导出预设列表')[0]
 
 /**
- * The dialog's 「复制基础信息到剪贴板」 button, matched by label plus a live `onClick`
+ * The dialog's 「复制基础信息」 button, matched by label plus a live `onClick`
  * rather than by `type === 'button'`: a component's rendered type is the
  * component function under this shim.
  * @param tree - a rendered tree.
  * @returns the button node, or undefined when the dialog is not open.
  */
 const copyButtonIn = (tree) =>
-  findNodes(tree, (n) => textOf(n) === '复制基础信息到剪贴板' && typeof n.props?.onClick === 'function')[0]
+  findNodes(tree, (n) => textOf(n) === '复制基础信息' && typeof n.props?.onClick === 'function')[0]
 
 /** The dialog's 「导出到本地」 button. */
 const downloadButtonIn = (tree) =>
@@ -98,7 +98,7 @@ async function runExport(root, tree) {
   await exportButtonIn(tree).props.onClick()
   const open = await root.flush()
   const button = copyButtonIn(open)
-  if (button === undefined) throw new Error('导出弹窗没有出现「复制基础信息到剪贴板」按钮')
+  if (button === undefined) throw new Error('导出弹窗没有出现「复制基础信息」按钮')
   await button.props.onClick()
   return root.flush()
 }
@@ -156,7 +156,7 @@ console.log('# 文案：中英对齐')
     keys.map((k) => `${k}:{${String(studio.zh?.[k]).match(/\{\w+\}/g)}} vs {${String(studio.en?.[k]).match(/\{\w+\}/g)}}`).join(' '),
   )
   check('按钮文案不依赖未定义的键', studio.copy('exportList') === '导出预设列表', studio.copy('exportList'))
-check('复制按钮文案已改为「复制基础信息到剪贴板」', studio.copy('exportCopy') === '复制基础信息到剪贴板', studio.copy('exportCopy'))
+check('复制按钮文案为「复制基础信息」', studio.copy('exportCopy') === '复制基础信息', studio.copy('exportCopy'))
 }
 
 console.log('# 点击导出 → 弹窗 → 剪贴板内容')

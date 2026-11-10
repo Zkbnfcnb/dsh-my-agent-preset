@@ -1,7 +1,7 @@
 /**
  * Regression: `includeWorkspace` (default on) appends the live session working
  * directory to the preset's persona section in EVERY injection mode — append,
- * complete, and custom-official — and that line disappears when the switch is
+ * complete, and custom — and that line disappears when the switch is
  * off or the cwd is empty.
  *
  * capability.js registers the `deployment:persona-prefix` section through the
@@ -16,7 +16,7 @@
  *
  * `complete` still nukes every other section (that is the mode's contract);
  * this test only asserts the persona section's text, so it also covers the
- * custom-official mode where the rest of the prompt is filtered instead.
+ * custom mode where the rest of the prompt is filtered instead.
  *
  * Run: node test/verify-complete-workspace.mjs
  */
@@ -123,13 +123,13 @@ function assert(cond, msg) {
   assert(text.startsWith(AUTHORED), 'append mode keeps the authored instructions')
 }
 
-// 6. custom-official mode appends workspace as well.
+// 6. custom mode appends workspace as well.
 {
-  const bundle = buildPreset({ instructionMode: 'custom-official' })
+  const bundle = buildPreset({ instructionMode: 'custom' })
   await sleep(150)
   const text = await personaText(bundle, '/tmp/ws')
-  assert(text.endsWith(`${WORKSPACE_LABEL}/tmp/ws`), 'custom-official mode appends the workspace line')
-  assert(text.startsWith(AUTHORED), 'custom-official mode keeps the authored instructions')
+  assert(text.endsWith(`${WORKSPACE_LABEL}/tmp/ws`), 'custom mode appends the workspace line')
+  assert(text.startsWith(AUTHORED), 'custom mode keeps the authored instructions')
 }
 
 if (failures > 0) {
