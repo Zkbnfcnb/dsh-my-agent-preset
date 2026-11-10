@@ -26,7 +26,6 @@ const PRESETS = [
     description: '拆解复杂任务。',
     instructions: '你是编排者。',
     instructionMode: 'complete',
-    includeWorkspace: true,
     contexts: ['dsh-working-directory'],
     requiredSuppressed: [],
     sections: ['harness:identity'],

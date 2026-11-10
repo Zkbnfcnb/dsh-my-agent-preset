@@ -26,7 +26,6 @@ const PLAIN = {
   description: '',
   instructions: '你是助手。',
   instructionMode: 'append',
-  includeWorkspace: true,
   contexts: undefined,
   skills: [],
   tools: { mode: 'all', names: [] },

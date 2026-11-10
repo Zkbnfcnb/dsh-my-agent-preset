@@ -31,7 +31,6 @@ const MANAGED = {
   description: '逐文件审查。',
   instructions: '你是审查者。',
   instructionMode: 'append',
-  includeWorkspace: true,
   // Only the optional half ever lands in `contexts`; required names are decided
   // by the advanced `requiredSuppressed` list alone.
   contexts: ['sandbox:policy', 'approval:policy', 'harness:source'],
@@ -142,7 +141,6 @@ console.log('# 点击复制：发往 Host 的载荷')
   assert.equal(body.description, MANAGED.description, 'description copied')
   assert.equal(body.instructions, MANAGED.instructions, 'instructions copied')
   assert.equal(body.instructionMode, MANAGED.instructionMode, 'injection mode copied')
-  assert.equal(body.includeWorkspace, true, 'workspace option copied')
   assert.deepEqual(body.skills, MANAGED.skills, 'skills copied')
   assert.deepEqual(body.tools, MANAGED.tools, 'tool selection copied')
   // Copied as-is: a managed source yields a managed copy, whitelist included.

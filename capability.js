@@ -248,25 +248,9 @@ export function apply(ctx, config) {
   )
   const managesSections = custom && (sectionAllowed !== undefined || sectionSuppressed.size > 0)
   const suffix = text(settings.instructionsSuffix)
-  // The workspace line follows EVERY injection mode now (the page presents it
-  // as one prompt option, not a `complete`-only one). The cwd is a per-turn
-  // fact held on `context.agent.session.header.cwd` (the same fact agent-loop
-  // exposes as the `cwd` prompt variable), so the section text is a FUNCTION
-  // that re-reads it on every assembly. Reading it directly keeps the rendered
-  // value out of `{{...}}` interpolation, so authored instructions containing
-  // braces behave exactly as before.
-  const includeWorkspace = settings.includeWorkspace !== false
-  const personaText = includeWorkspace
-    ? (context) => {
-        const cwd = text(context?.agent?.session?.header?.cwd)
-        if (cwd === '') return instructions
-        const line = `当前任务工作区：${cwd}`
-        return instructions === '' ? line : `${instructions}\n\n${line}`
-      }
-    : instructions
   // A preset with no authored text still registers the section in `custom`
-  // mode: the workspace line may stand on its own, and the section is the name
-  // the section filter must recognise as this preset's own.
+  // mode: the section name is what the checklist filter recognises as this
+  // preset's own, so the keep / suppress lists still apply.
   const personaRegistered = instructions !== '' || custom
   if (personaRegistered) {
     ctx.inject(['systemPrompt'], (scoped) => {
@@ -275,7 +259,7 @@ export function apply(ctx, config) {
           scoped.systemPrompt.section({
             name: PERSONA_PREFIX_SECTION,
             order: 0,
-            text: personaText,
+            text: instructions,
             ...(complete ? { complete: true } : {}),
           }),
         'my-agent-preset: persona prefix',

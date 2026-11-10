@@ -34,7 +34,6 @@ const PRESETS = [
     description: '使用 session_bridge 系列工具创建、发送、等待、监控、恢复、归档多个子会话，将复杂任务拆解为多会话协作并汇总结果。',
     instructions: '你是编排者。\n第二行不该出现在导出里。',
     instructionMode: 'complete',
-    includeWorkspace: true,
     skills: ['pdf', 'univer'],
     tools: { mode: 'allow', names: ['bash', 'read'] },
     enabled: true,

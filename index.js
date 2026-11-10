@@ -454,10 +454,6 @@ export function normalizePreset(input) {
     description: text(input.description),
     instructions: typeof input.instructions === 'string' ? input.instructions : '',
     instructionMode: normalizeInstructionMode(input.instructionMode),
-    // The workspace line is a prompt-wide option: it applies in `append`,
-    // `complete`, and `custom` mode. Defaults to on when the field is
-    // absent so existing presets gain the behavior.
-    includeWorkspace: input.includeWorkspace !== false,
     // The section checklist, carried ON the preset: an absent array means the
     // preset manages nothing (every section injects), while an array is the
     // strict keep list the runtime filter applies. The ADVANCED force list is
@@ -617,7 +613,6 @@ export function toDefinition(preset, baselineRows = [], skillIndex = new Map()) 
       presetId: preset.id,
       instructions: preset.instructions,
       instructionMode: preset.instructionMode,
-      includeWorkspace: preset.includeWorkspace !== false,
       skills: selectedSkills,
       tools: toolSelection,
       // The checklist travels with the preset, so the filter a stored preset

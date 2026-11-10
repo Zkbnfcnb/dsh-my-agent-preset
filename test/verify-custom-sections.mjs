@@ -13,7 +13,7 @@
  *      third-party alike, because the checklist selects names, not namespaces;
  *   3. an EMPTY keep list removes every optional section;
  *   4. the preset's own persona section survives the checklist and carries the
- *      workspace line;
+ *      authored text;
  *   5. the ADVANCED force list may remove a persona section;
  *   6. tools and contexts are untouched by the section filter;
  *   7. `append` ignores a stored list, and `complete` still collapses to the
@@ -30,7 +30,6 @@ import { apply } from '../capability.js'
 const PERSONA_SECTION = 'deployment:persona-prefix'
 const PERSONA_SUFFIX = 'deployment:persona-suffix'
 const AUTHORED = '你是一个专注的代码助手。'
-const WORKSPACE_LABEL = '当前任务工作区：'
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** Sections the checklist can keep or drop. */
@@ -79,13 +78,12 @@ async function build(config, agentSections = []) {
       presetId: 'p1',
       instructions: AUTHORED,
       instructionMode: 'custom',
-      includeWorkspace: true,
       skills: [],
       tools: { mode: 'all', names: [] },
       ...config,
     })
   })
-  const agent = { session: { header: { cwd: '' } } }
+  const agent = { session: { header: {} } }
   const agentScope = createScope(presetScope.ctx, agent, { parent: presetKey })
   for (const name of agentSections) {
     agentScope.ctx.plugin((ctx) => {
@@ -99,8 +97,7 @@ async function build(config, agentSections = []) {
 }
 
 /** Assemble for the bundle's agent scope. */
-async function assembleWith(bundle, cwd = '/tmp/ws') {
-  bundle.agent.session.header.cwd = cwd
+async function assembleWith(bundle) {
   const sp = bundle.agentScope.ctx.get('systemPrompt')
   return sp.assemble({ agent: bundle.agent, scope: bundle.agent })
 }
@@ -117,8 +114,7 @@ const sectionOf = (assembly, name) => assembly.sections.find((section) => sectio
   assert(names.has('agent-plugin:rules') === false, 'agent section only registers when built with one')
   const persona = sectionOf(assembly, PERSONA_SECTION)
   assert(persona !== undefined, 'preset persona section present')
-  assert(persona.text.startsWith(AUTHORED), 'preset persona keeps the authored text')
-  assert(persona.text.endsWith(`${WORKSPACE_LABEL}/tmp/ws`), 'preset persona appends the workspace line')
+  assert.equal(persona.text, AUTHORED, 'preset persona text is exactly the authored text')
 }
 
 // 2-3. A keep list selects exact names; everything else is removed.

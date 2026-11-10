@@ -62,7 +62,6 @@ const PRESET = {
   description: '',
   instructions: '',
   instructionMode: 'custom',
-  includeWorkspace: true,
   contexts: undefined,
   sections: undefined,
   skills: [],

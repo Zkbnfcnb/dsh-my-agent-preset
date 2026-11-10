@@ -33,7 +33,6 @@ const PRESET = {
   description: '',
   instructions: '你是助手。',
   instructionMode: 'custom',
-  includeWorkspace: true,
   contexts: ['sandbox:policy', 'approval:policy', 'harness:source'],
   skills: [],
   tools: { mode: 'all', names: [] },

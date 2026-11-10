@@ -213,9 +213,6 @@ window.__ModuleLoader__.load({
       modeAppendHint: '只用这段文字替换人设前缀，保留 DSH 其它系统提示词（工具指导等）。',
       modeCompleteHint: '只使用这段文字，移除所有其它系统提示词（含第三方插件注入）。',
       modeCustomHint: '只用这段文字作为人设，并按下方勾选决定注入哪些提示词段：勾选 = 保留，未勾选 = 屏蔽。DSH 官方段不再默认屏蔽，预设自身的人设段始终保留。',
-      includeWorkspace: '附带工作区',
-      includeWorkspaceHint: '在提示词末尾自动附上当前会话工作区路径；追加、完全替换、自定义三种方式都生效（默认开启）。',
-      includeWorkspaceOn: '在提示词末尾附带当前会话工作区',
       groupContexts: '运行时上下文',
       contexts: '注入的快照项',
       contextsHint: '逐项勾选每轮注入的「Current runtime context」快照里允许出现哪些上下文；未勾选的项对该预设不再注入。标记「必需 · 不可关闭」的项由官方强制注入，无法关闭。',
@@ -383,9 +380,6 @@ window.__ModuleLoader__.load({
       modeAppendHint: 'Uses this text as the persona prefix (replacing the deployment persona) while keeping the rest of DSH\u2019s system prompt, such as tool guidance.',
       modeCompleteHint: 'Uses only this text, removing every other system-prompt section (including third-party contributions).',
       modeCustomHint: 'Uses this text as the persona and decides which prompt sections are injected from the checklist below: checked = kept, unchecked = blocked. DSH\u2019s own sections are no longer blocked by default; the preset\u2019s own persona sections are always kept.',
-      includeWorkspace: 'Include workspace',
-      includeWorkspaceHint: 'Appends the current session workspace path to the prompt; applies to append, complete and custom modes (on by default).',
-      includeWorkspaceOn: 'Append the current session working directory',
       groupContexts: 'Runtime context',
       contexts: 'Snapshot contributions',
       contextsHint: 'Pick which contributions the per-step “Current runtime context” snapshot may carry; unchecked ones stop being injected for this preset. Rows marked “required” are force-injected by DSH itself and cannot be turned off.',
@@ -580,7 +574,6 @@ window.__ModuleLoader__.load({
         instructionMode: ['append', 'complete', 'custom'].includes(source.instructionMode)
           ? source.instructionMode
           : 'append',
-        includeWorkspace: source.includeWorkspace !== false,
         skills: asStringList(source.skills),
         tools: {
           mode: ['all', 'allow', 'deny'].includes(source.tools?.mode) ? source.tools.mode : 'all',
@@ -633,7 +626,6 @@ window.__ModuleLoader__.load({
         instructionMode: ['append', 'complete', 'custom'].includes(input.instructionMode)
           ? input.instructionMode
           : 'append',
-        includeWorkspace: input.includeWorkspace !== false,
         skills: asStringList(input.skills),
         tools: {
           mode: ['all', 'allow', 'deny'].includes(input.tools?.mode) ? input.tools.mode : 'all',
@@ -807,7 +799,6 @@ window.__ModuleLoader__.load({
         description: '',
         instructions: '',
         instructionMode: 'append',
-        includeWorkspace: true,
         // LEFT UNDEFINED on purpose. `undefined` means "this preset does not
         // manage the snapshot", which is exactly what an unopened snapshot list
         // should stay: a NEW preset gets the fully-checked default from the
@@ -2413,18 +2404,6 @@ window.__ModuleLoader__.load({
               : []),
             h(
               Field,
-              { label: t('includeWorkspace'), hint: t('includeWorkspaceHint') },
-              h('label', { className: 'aps-toggle' },
-                h('input', {
-                  type: 'checkbox',
-                  checked: draft.includeWorkspace !== false,
-                  onChange: (event) => patch({ includeWorkspace: event.target.checked }),
-                }),
-                h('span', {}, t('includeWorkspaceOn')),
-              ),
-            ),
-            h(
-              Field,
               { label: t('instructions'), hint: t('instructionsHint') },
               h('textarea', {
                 className: 'aps-textarea',
@@ -2778,7 +2757,6 @@ window.__ModuleLoader__.load({
             description: preset.description ?? '',
             instructions: preset.instructions ?? '',
             instructionMode: preset.instructionMode ?? 'append',
-            includeWorkspace: preset.includeWorkspace !== false,
             // Copied as-is, array or absence: an unmanaged source yields an
             // unmanaged copy, a managed one keeps its exact whitelist. The
             // advanced force-suppress list rides along for the same reason — a
@@ -2998,7 +2976,6 @@ window.__ModuleLoader__.load({
                         ...target,
                         tools: { mode: 'all', names: [], ...(target.tools ?? {}) },
                         skills: [...(target.skills ?? [])],
-                        includeWorkspace: target.includeWorkspace !== false,
                       })
                     },
                     onToggle: toggle,
