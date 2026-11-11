@@ -76,10 +76,11 @@ provider 的实现对齐 skills-manager 的三个机制：
 `custom` 模式与「完全替换」的 `complete: true` 不同：它**不使用 complete 核弹**，而是在预设 scope 注册一个 `system-prompt/assemble` waterfall 监听器（`prepend: true`，先调用 `next()` 让所有下游贡献完成，再过滤最终结果），只从 `assembly.sections` 中按**精确段名**过滤，`tools` / `contexts` / `variables` 一概不动。
 
 - `sections` 字段**缺失** = 不管理（全部段注入）；**数组** = 严格保留名单；**空数组** = 只留预设人设段。
-- 预设自身的人设段（`deployment:persona-prefix` / `deployment:persona-suffix`）由 capability 注册，永远保留；`sectionsSuppressed` 是页面「高级 · 强制屏蔽」写下的逃逸口，只接受这两个名字。
+- 预设自身的人设段（`deployment:persona-prefix`）由 capability 注册，永远保留；`sectionsSuppressed` 是页面「高级 · 强制屏蔽」写下的逃逸口，只接受这个名字。
+- `deployment:persona-suffix` 是 DSH 官方注册的普通段，本插件不再特殊处理：它按清单勾选注入或屏蔽。
 - 没有内置的官方命名空间表：段清单完全由勾选决定，第三方插件与 `mcp:<server>` 段默认保留，直到用户取消勾选。
 
-**段目录来自运行中的注册表**（`readSectionNames` 读 `systemPrompt.layers.merge(scope).sections` 的 keys），与运行时上下文是同一套 `layers.merge` 探针；`list` 的 `meta.sectionCatalog` 合并全局层与每个预设 scope，并固定补上两个人设段（`required: true`，`present` 表示该名字是否真的注册过）。页面用与 `ContextPicker` 完全相同的勾选组件（`SectionPicker`）：全选 / 取消全选 / 已选计数、已勾选靠前、普通行可切换；两者共用同一套过滤搜索框（`aps-filter` + `aps-input` 搜索输入）——段清单按名称、上下文清单按名称 / 标签 / 描述实时过滤，显示「匹配 x/y」计数，无匹配时显示「没有匹配的提示词段」/「没有匹配的上下文」并隐藏批量按钮，全选 / 取消全选只作用于可见行，过滤词变化时按当前勾选重新排序。人设行勾选且禁用，旁边一行「高级 · 强制屏蔽这一项（官方本不允许）」。
+**段目录来自运行中的注册表**（`readSectionNames` 读 `systemPrompt.layers.merge(scope).sections` 的 keys），与运行时上下文是同一套 `layers.merge` 探针；`list` 的 `meta.sectionCatalog` 合并全局层与每个预设 scope，并固定补上预设自己的人设前缀段（`required: true`，`present` 表示该名字是否真的注册过）；官方 `persona-suffix` 若在 live registry 中，则作为普通行列出。页面用与 `ContextPicker` 完全相同的勾选组件（`SectionPicker`）：全选 / 取消全选 / 已选计数、已勾选靠前、普通行可切换；两者共用同一套过滤搜索框（`aps-filter` + `aps-input` 搜索输入）——段清单按名称、上下文清单按名称 / 标签 / 描述实时过滤，显示「匹配 x/y」计数，无匹配时显示「没有匹配的提示词段」/「没有匹配的上下文」并隐藏批量按钮，全选 / 取消全选只作用于可见行，过滤词变化时按当前勾选重新排序。人设行勾选且禁用，旁边一行「高级 · 强制屏蔽这一项（官方本不允许）」。
 
 **自检与运行时同源**：`resolveSectionSelection(names, allowed, suppressed)` 同时服务 `inspect` 的 dry-run 与 capability 的运行时过滤，因此面板里的 `kept` / `blocked` 计数与两个名单就是真正会执行的决定。`inspect` 接受草稿覆盖（`sections: null` = 不管理，显式覆盖存储值），勾选变化并入 `inspectKey`，350ms 防抖后重读。`available: false` 表示注册表不可读，不会谎报 0；`managed: false` 表示该预设不管理段清单（全部注入）。
 
@@ -214,7 +215,7 @@ Agent 加入预设发生在创建之后，因此安装时机覆盖三种：`agen
 
 | 端点 | 请求体 | 说明 |
 |---|---|---|
-| `list` | `{}` | 预设与状态、全局工具目录、按来源分组的技能目录、**快照上下文目录 `meta.contextCatalog`**（每行带 `required` / `order` / `known` / `source`：`registry` 表示读自运行时注册表，`table`/`observed` 表示回退到内置表或观测表）、`meta.contextRegistry`（`readable` / `scoped` / `scopeKeys`）、**段目录 `meta.sectionCatalog`**（每行 `{ name, required, present }`，固定包含两个人设段，`present` 表示该名字是否真的注册过）、**能力标记 `meta.capabilities`**（`snapshotContexts` / `presetDuplicate` / `requiredSuppression` / `contextRegistryTruth`，供 Client 判断当前 Host 到底懂哪些字段） |
+| `list` | `{}` | 预设与状态、全局工具目录、按来源分组的技能目录、**快照上下文目录 `meta.contextCatalog`**（每行带 `required` / `order` / `known` / `source`：`registry` 表示读自运行时注册表，`table`/`observed` 表示回退到内置表或观测表）、`meta.contextRegistry`（`readable` / `scoped` / `scopeKeys`）、**段目录 `meta.sectionCatalog`**（每行 `{ name, required, present }`，固定包含人设前缀段，`present` 表示该名字是否真的注册过）、**能力标记 `meta.capabilities`**（`snapshotContexts` / `presetDuplicate` / `requiredSuppression` / `contextRegistryTruth`，供 Client 判断当前 Host 到底懂哪些字段） |
 | `save` | 预设对象（无 `id` 表示新建；可选 `insertAfter: <源 id>` 把新预设插在该预设之后并把整列 `order` 重写为文档下标——复制预设用） | 校验并落盘，随后重新注册 |
 | `delete` | `{ id }` | 删除并重新注册其余预设 |
 | `toggle` | `{ id }` | 启用/停用 |

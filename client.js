@@ -68,10 +68,6 @@ window.__ModuleLoader__.load({
 .aps-iconButton:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-1px}
 .aps-iconButton:disabled{opacity:.4;cursor:default}
 .aps-iconButtonDanger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger,var(--dsw-alias-bg-layer-3));color:var(--dsw-alias-state-error-primary)}
-.aps-creator{box-sizing:border-box;border:1px dashed var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-lg);height:44px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;line-height:22px}
-.aps-creator:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
-.aps-creator:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
-.aps-creator:disabled{opacity:.4;cursor:default}
 .aps-empty{border:.5px dashed var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-lg);padding:24px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.6}
 .aps-cardPanel{border:.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-1));padding:4px 16px 16px}
 .aps-field{display:flex;flex-direction:column;gap:6px;padding:12px 0}
@@ -80,11 +76,10 @@ window.__ModuleLoader__.load({
 .aps-label{flex:1;min-width:0;font-size:13px;font-weight:500;line-height:1.5;color:var(--dsw-alias-label-primary)}
 .aps-hint{margin:0;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}
 .aps-example{margin:0;padding-left:8px;border-left:2px solid var(--dsw-alias-border-l2);font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}
-.aps-input,.aps-textarea,.aps-select{box-sizing:border-box;width:100%;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-3);font:inherit;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary)}
-.aps-input,.aps-select{height:34px;padding:0 12px}
-.aps-select{appearance:none;cursor:pointer}
+.aps-input,.aps-textarea{box-sizing:border-box;width:100%;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-3);font:inherit;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary)}
+.aps-input{height:34px;padding:0 12px}
 .aps-textarea{padding:8px 12px;min-height:92px;resize:vertical;font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12.5px}
-.aps-input:focus-visible,.aps-textarea:focus-visible,.aps-select:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary)}
+.aps-input:focus-visible,.aps-textarea:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary)}
 /* Chip editor: the same 34px box/border metrics as .aps-input, with the chips
    and the caret sharing one row. Focus lives on the inner input, so the ring is
    drawn by :focus-within on the shell. */
@@ -104,13 +99,6 @@ window.__ModuleLoader__.load({
 .aps-checkBody{display:flex;flex-direction:column;gap:1px;min-width:0}
 .aps-checkName{font-size:13px;line-height:1.5;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace)}
 .aps-checkDesc{font-size:11px;line-height:1.5;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}
-.aps-mcpList{display:flex;flex-direction:column;gap:10px}
-.aps-mcpItem{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:10px 12px;display:flex;flex-direction:column;gap:10px;background:var(--dsw-alias-bg-layer-2)}
-.aps-mcpHead{display:flex;align-items:center;gap:8px}
-.aps-mcpTitle{flex:1;min-width:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.aps-subGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.aps-subField{display:flex;flex-direction:column;gap:4px}
-.aps-subLabel{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .aps-footer{display:flex;align-items:center;gap:8px;padding-top:16px}
 .aps-footerSpacer{flex:1}
 .aps-btn{appearance:none;border:.5px solid var(--dsw-alias-border-l4);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);border-radius:var(--dsw-radius-md);padding:5px 14px;font:inherit;font-size:13px;line-height:1.5;cursor:pointer}
@@ -119,7 +107,6 @@ window.__ModuleLoader__.load({
 .aps-btn:disabled{opacity:.4;cursor:default}
 .aps-btnPrimary{background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-label-primary));border-color:transparent;color:var(--dsw-alias-bg-layer-3)}
 .aps-btnPrimary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-label-primary))}
-.aps-btnDanger{color:var(--dsw-alias-state-error-primary)}
 .aps-disc{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);overflow:hidden}
 .aps-disc+.aps-disc{margin-top:8px}
 .aps-discHead{appearance:none;border:0;background:0 0;font:inherit;display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 12px;cursor:pointer;color:var(--dsw-alias-label-primary)}
@@ -141,31 +128,18 @@ window.__ModuleLoader__.load({
 .aps-linkButton{appearance:none;border:0;background:0 0;font:inherit;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:2px 6px;border-radius:var(--dsw-radius-sm)}
 .aps-linkButton:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
 .aps-linkButton:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-.aps-switchRow{display:flex;align-items:center;gap:8px}
-.aps-switchText{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
-.aps-switch{appearance:none;flex:none;width:34px;height:20px;border-radius:999px;border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-layer-3);cursor:pointer;padding:2px;display:inline-flex;align-items:center;transition:background .16s}
-.aps-switchThumb{width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-tertiary);transition:transform .16s,background .16s}
-.aps-switchOn{background:var(--dsw-alias-brand-primary);border-color:transparent}
-.aps-switchOn .aps-switchThumb{transform:translateX(14px);background:var(--dsw-alias-bg-layer-1)}
-.aps-switch:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-.aps-switch:disabled{opacity:.4;cursor:default}
-.aps-toolTags{display:flex;flex-wrap:wrap;gap:4px}
-.aps-toolTag{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;line-height:17px;border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-secondary);padding:1px 6px;overflow-wrap:anywhere}
-.aps-toolTagOff{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;line-height:17px;border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));padding:1px 6px;text-decoration:line-through;overflow-wrap:anywhere}
 .aps-warn{margin:2px 0 0;font-size:11px;line-height:1.5;color:var(--dsw-alias-state-warn-primary);overflow-wrap:anywhere}
 .aps-warnBlock{margin:8px 0 0;border:.5px solid var(--dsw-alias-state-warn-primary);border-radius:var(--dsw-radius-md);padding:10px 12px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:6px}
 .aps-warnTitle{font-size:13px;line-height:1.5;font-weight:500;color:var(--dsw-alias-state-warn-primary)}
 .aps-warnBody{margin:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
 .aps-inspect{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:10px 12px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:8px}
-.aps-toggle{display:flex;font-size:12px;align-items:center;gap:2px;flex-wrap:wrap}
 .aps-inspectHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .aps-inspectCount{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
 .aps-nameListBlock{margin-top:10px}
 .aps-nameListTitle{margin:0 0 4px;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
 .aps-nameList{margin:0;padding:0;list-style:none;max-height:190px;overflow:auto;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-2)}
 .aps-nameList li{padding:3px 10px;font-size:12px;line-height:1.6;font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;border-top:.5px solid var(--dsw-alias-border-l1)}
-.aps-nameList li:first-child{border-top:0}
-.aps-codePath{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;line-height:1.7;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere;display:block}`
+.aps-nameList li:first-child{border-top:0}`
 
     /** Chinese dictionary. */
     const zh = {
@@ -292,7 +266,6 @@ window.__ModuleLoader__.load({
       inspectBlocked: '被名单拒绝的工具 {count} 个',
       inspectSkills: '启用的技能 {count} 个',
       inspectSkillsOff: '技能工具未启用，该预设的技能全部不可用',
-      inspectSkillsMissing: '{count} 个技能已不在当前技能目录中',
       inspectListedUnavailable: '这些名字写进了名单，但该预设的继承面里没有它们，因此不会生效——多半是拼写不对，或提供该工具的插件没有装进这个预设。',
       inspectEmpty: '该预设没有任何可用工具',
       inspectUnavailable: '无法读取运行时视图：{reason}',
@@ -309,7 +282,6 @@ window.__ModuleLoader__.load({
       stateOn: '已启用',
       stateOff: '已停用',
       stateBroken: '异常',
-      statePending: '未注册',
       enable: '启用',
       disable: '停用',
       remove: '删除',
@@ -328,7 +300,6 @@ window.__ModuleLoader__.load({
       factToolsAll: '工具：全部',
       factToolsAllow: '工具：白名单 {count}',
       factToolsDeny: '工具：黑名单 {count}',
-      factBlocked: '拒 {count} 工具',
       loadFailed: '读取失败：{message}',
       saveFailed: '保存失败：{message}',
       deleteFailed: '删除失败：{message}',
@@ -459,7 +430,6 @@ window.__ModuleLoader__.load({
       inspectBlocked: 'Tools refused by the list: {count}',
       inspectSkills: 'Enabled skills: {count}',
       inspectSkillsOff: 'The skill tool is disabled, so no skill can load',
-      inspectSkillsMissing: '{count} skills are no longer in the catalogue',
       inspectListedUnavailable: 'These names are in the list but not in this preset\u2019s inherited surface, so they cannot apply — usually a typo, or the plugin that provides them is not mounted in this preset.',
       inspectEmpty: 'This preset has no usable tool',
       inspectUnavailable: 'Runtime view unavailable: {reason}',
@@ -476,7 +446,6 @@ window.__ModuleLoader__.load({
       stateOn: 'On',
       stateOff: 'Off',
       stateBroken: 'Broken',
-      statePending: 'Not registered',
       enable: 'Enable',
       disable: 'Disable',
       remove: 'Delete',
@@ -495,7 +464,6 @@ window.__ModuleLoader__.load({
       factToolsAll: 'Tools: all',
       factToolsAllow: 'Tool: whitelist {count}',
       factToolsDeny: 'Tool: blacklist {count}',
-      factBlocked: 'Refuse {count}',
       loadFailed: 'Load failed: {message}',
       saveFailed: 'Save failed: {message}',
       deleteFailed: 'Delete failed: {message}',
@@ -2722,18 +2690,18 @@ window.__ModuleLoader__.load({
           setDraft(null)
           await refresh()
           return result
-        }, zh.saveFailed)
+        }, t('saveFailed'))
       const remove = (preset) =>
         run(async () => {
           await callApi('delete', { id: preset.id })
           setConfirming(null)
           await refresh()
-        }, zh.deleteFailed)
+        }, t('deleteFailed'))
       const toggle = (preset) =>
         run(async () => {
           await callApi('toggle', { id: preset.id })
           await refresh()
-        }, zh.saveFailed)
+        }, t('saveFailed'))
       /**
        * Duplicate one preset card in place.
        *
@@ -2778,7 +2746,7 @@ window.__ModuleLoader__.load({
           setNotice(format(t('copyDone'), { name: copy.name }))
           await refresh()
           return result
-        }, zh.copyFailed)
+        }, t('copyFailed'))
       /** The export dialog finished its copy; close it and report the count. */
       const exportDone = (count) => {
         setExporting(false)

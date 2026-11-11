@@ -177,16 +177,18 @@ console.log('# 无法读取时的回退')
     assert.equal(catalog.find((row) => row.name === 'sandbox:policy')?.order, 110, 'and the shipped order still applies')
 
     // The section checklist can render without a readable registry: the
-    // preset's own persona rows are always offered, checked-and-disabled.
+    // preset's own persona prefix is always offered, checked-and-disabled.
+    // The deployment suffix has no special treatment anymore, so with no
+    // registry to read it is simply absent.
     const listed = await bundle.store.list()
     const sectionRows = listed.meta.sectionCatalog ?? []
     const sectionNames = sectionRows.map((row) => row.name)
     assert(sectionNames.includes('deployment:persona-prefix'), 'the persona prefix reaches the page')
-    assert(sectionNames.includes('deployment:persona-suffix'), 'the persona suffix is offered too')
+    assert(!sectionNames.includes('deployment:persona-suffix'), 'the suffix needs a live registry to be listed')
     assert.equal(
       sectionRows.filter((row) => row.required === true).length,
-      2,
-      'both persona rows are marked required',
+      1,
+      'only the preset persona prefix is marked required',
     )
   } finally {
     await bundle.dispose()

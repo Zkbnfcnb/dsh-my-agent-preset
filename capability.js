@@ -32,18 +32,16 @@ import { readFile, stat } from 'node:fs/promises'
 
 /** Section name the prompt registry reserves for the deployment persona. */
 const PERSONA_PREFIX_SECTION = 'deployment:persona-prefix'
-/** Section name the prompt registry reserves for the deployment persona suffix. */
-const PERSONA_SUFFIX_SECTION = 'deployment:persona-suffix'
 /**
  * Sections this preset registers itself and keeps no matter what the page's
- * checklist says: the persona prefix and suffix ARE the preset's prompt, so
- * dropping them would silently discard the text the user authored.
+ * checklist says: the persona prefix IS the preset's prompt, so dropping it
+ * would silently discard the text the user authored.
  *
- * They are shown checked-and-disabled in the page's section list, exactly like
+ * It is shown checked-and-disabled in the page's section list, exactly like
  * the runtime-context `required` rows, and the ADVANCED force-suppress list
- * (`sectionsSuppressed`) is the only thing that may remove them.
+ * (`sectionsSuppressed`) is the only thing that may remove it.
  */
-export const PERSONA_SECTION_NAMES = Object.freeze([PERSONA_PREFIX_SECTION, PERSONA_SUFFIX_SECTION])
+export const PERSONA_SECTION_NAMES = Object.freeze([PERSONA_PREFIX_SECTION])
 /** Provider name published into the preset's skill layer. */
 const SKILL_PROVIDER = 'dsh-my-agent-preset'
 /**
@@ -247,7 +245,6 @@ export function apply(ctx, config) {
     custom ? configList(settings.sectionsSuppressed).filter((name) => PERSONA_SECTION_NAMES.includes(name)) : [],
   )
   const managesSections = custom && (sectionAllowed !== undefined || sectionSuppressed.size > 0)
-  const suffix = text(settings.instructionsSuffix)
   // A preset with no authored text still registers the section in `custom`
   // mode: the section name is what the checklist filter recognises as this
   // preset's own, so the keep / suppress lists still apply.
@@ -264,18 +261,6 @@ export function apply(ctx, config) {
           }),
         'my-agent-preset: persona prefix',
       )
-      const suffixRegistered = !complete && suffix !== ''
-      if (suffixRegistered) {
-        scoped.effect(
-          () =>
-            scoped.systemPrompt.section({
-              name: PERSONA_SUFFIX_SECTION,
-              order: 0,
-              text: suffix,
-            }),
-          'my-agent-preset: persona suffix',
-        )
-      }
       if (managesSections) {
         // `prepend` puts this listener first in the waterfall, and calling
         // `next()` lets every downstream listener (including the Host's tool
@@ -296,8 +281,6 @@ export function apply(ctx, config) {
                   const name = typeof section?.name === 'string' ? section.name : ''
                   if (name === PERSONA_PREFIX_SECTION)
                     return personaRegistered && sectionSuppressed.has(name) === false
-                  if (name === PERSONA_SUFFIX_SECTION)
-                    return suffixRegistered && sectionSuppressed.has(name) === false
                   return sectionAllowed === undefined || sectionAllowed.has(name)
                 })
                 if (sections.length === assembly.sections.length) return assembly

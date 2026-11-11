@@ -41,7 +41,7 @@ const MANAGED = {
   name: '清单',
   instructionMode: 'custom',
   sections: ['third-party:notes'],
-  sectionsSuppressed: ['deployment:persona-suffix'],
+  sectionsSuppressed: ['deployment:persona-prefix'],
 }
 
 const META = {
@@ -50,7 +50,7 @@ const META = {
   capabilities: ['snapshotContexts', 'requiredSuppression', 'contextRegistryTruth'],
   sectionCatalog: [
     { name: 'deployment:persona-prefix', required: true, present: true },
-    { name: 'deployment:persona-suffix', required: true, present: false },
+    { name: 'deployment:persona-suffix', required: false, present: true },
     { name: 'harness:identity', required: false, present: true },
     { name: 'third-party:notes', required: false, present: true },
   ],
@@ -163,13 +163,13 @@ console.log('# 未管理 = 全部勾选，人设段勾选且禁用')
   tree = await studio.root.flush()
   const rows = sectionRows(tree)
   assert.equal(rows.length, 4, `one checkbox per catalog row (got ${rows.length})`)
-  assert.equal(forceRows(tree).length, 2, 'each required row carries one force-box')
+  assert.equal(forceRows(tree).length, 1, 'only the preset persona row carries a force-box')
   const persona = rowFor(tree, 'deployment:persona-prefix')
   assert.equal(persona?.checked, true, 'the persona prefix is checked')
   assert.equal(persona?.disabled, true, 'and disabled')
   const suffix = rowFor(tree, 'deployment:persona-suffix')
   assert.equal(suffix?.checked, true, 'the persona suffix is checked')
-  assert.equal(suffix?.disabled, true, 'and disabled')
+  assert.equal(suffix?.disabled, false, 'and editable now that it is an ordinary deployment row')
   const harness = rowFor(tree, 'harness:identity')
   assert.equal(harness?.checked, true, 'an optional row starts checked')
   assert.equal(harness?.disabled, false, 'and is editable')
@@ -188,7 +188,7 @@ console.log('# 取消勾选 → 保存载荷 = 保留名单')
   await labelled(tree, '保存')[0].props.onClick()
   tree = await studio.root.flush()
   const payload = saves(studio).at(-1)
-  assert.deepEqual(payload?.sections, ['third-party:notes'], 'the unchecked row is absent from the keep list')
+  assert.deepEqual(payload?.sections, ['deployment:persona-suffix', 'third-party:notes'], 'the unchecked row is absent from the keep list')
   assert.equal(payload?.sectionsSuppressed, undefined, 'and no force list is written')
 }
 
@@ -203,7 +203,7 @@ console.log('# 取消全选只动普通行；空名单保存为 []')
   tree = await studio.root.flush()
   assert.equal(rowFor(tree, 'harness:identity').checked, false, 'clear-selection unchecks the optional row')
   assert.equal(rowFor(tree, 'deployment:persona-prefix').checked, true, 'but the persona stays checked')
-  assert(selectedHint(tree).includes('2'), `the count drops to the required rows (${selectedHint(tree)})`)
+  assert(selectedHint(tree).includes('1'), `the count drops to the required row (${selectedHint(tree)})`)
   await labelled(tree, '保存')[0].props.onClick()
   tree = await studio.root.flush()
   assert.deepEqual(saves(studio).at(-1)?.sections, [], 'an empty keep list is a decision, not an absent field')
@@ -225,7 +225,7 @@ console.log('# 全选保存全部普通行')
   tree = await studio.root.flush()
   assert.deepEqual(
     [...(saves(studio).at(-1)?.sections ?? [])].sort(),
-    ['harness:identity', 'third-party:notes'],
+    ['deployment:persona-suffix', 'harness:identity', 'third-party:notes'],
     'select-all saves every optional row',
   )
 }
@@ -257,8 +257,9 @@ console.log('# 已保存清单：部分勾选 + 已强制屏蔽')
   const tree = await openEditor(studio, await studio.root.settle())
   assert.equal(rowFor(tree, 'third-party:notes').checked, true, 'a listed section is checked')
   assert.equal(rowFor(tree, 'harness:identity').checked, false, 'an unlisted section is unchecked')
-  assert.equal(rowFor(tree, 'deployment:persona-suffix').checked, false, 'a force-blocked persona reads unchecked')
-  assert.equal(forceFor(tree, 'deployment:persona-suffix')?.checked, true, 'and its force-box is checked')
+  assert.equal(rowFor(tree, 'deployment:persona-prefix').checked, false, 'a force-blocked persona prefix reads unchecked')
+  assert.equal(forceFor(tree, 'deployment:persona-prefix')?.checked, true, 'and its force-box is checked')
+  assert.equal(forceFor(tree, 'deployment:persona-suffix'), undefined, 'the deployment suffix has no force-box')
 }
 
 console.log('# 自检按草稿计算，并显示保留/被屏蔽名单')
@@ -273,7 +274,7 @@ console.log('# 自检按草稿计算，并显示保留/被屏蔽名单')
   await rowFor(tree, 'harness:identity').onChange()
   tree = await settleInspect(studio)
   const second = inspects(studio).at(-1)
-  assert.deepEqual(second?.config?.sections, ['third-party:notes'], 'the draft keep list drives the inspect call')
+  assert.deepEqual(second?.config?.sections, ['deployment:persona-suffix', 'third-party:notes'], 'the draft keep list drives the inspect call')
   const panel = inspectTextOf(tree)
   assert(panel.includes('保留的提示词段 2 项'), `the panel shows the kept count (${panel})`)
   assert(panel.includes('被屏蔽的提示词段 2 项'), `the panel shows the blocked count (${panel})`)

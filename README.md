@@ -111,7 +111,8 @@ DSH（DeepSeek Harness）原生的 Agent 是「全量装备」：所有工具、
 - 清单来自运行中的提示词注册表（全局层 + 每个预设的 standing scope），第三方插件注册的段也会出现，不需要等插件发版。
 - 字段缺失 = 不管理，全部段照常注入；数组 = 严格保留名单；空数组 = 只留预设自己的人设段。
 - 不管理时**保存不会把当前目录固化成白名单**：之后插件新注册的段仍自动注入，编辑旧预设与新建预设看到的勾选一致；只有手动勾选或点全选后才转为严格名单。
-- 预设自身的人设段（`deployment:persona-prefix` / `persona-suffix`）默认勾选且禁用；需要时打开**高级 · 强制屏蔽**（默认关闭）才会真正移除——等同于让该预设不再注入这段文字。
+- 预设自身的人设段（`deployment:persona-prefix`）默认勾选且禁用；需要时打开**高级 · 强制屏蔽**（默认关闭）才会真正移除——等同于让该预设不再注入这段文字。
+- 部署人设的后缀段（`deployment:persona-suffix`）由官方注册，按普通段参与勾选：勾上保留，取消则屏蔽。
 - 不再有「默认屏蔽 DSH 官方段」的内置规则：屏蔽哪些段完全由勾选决定。
 
 ### 运行时上下文：逐项白名单
@@ -338,10 +339,8 @@ ln -s /path/to/dsh-my-agent-preset \
 node test/verify-export-clipboard.mjs
 node test/verify-import-export.mjs
 node test/verify-copy-and-contexts-ui.mjs
-node test/verify-official-only.mjs
 node test/verify-context-snapshot.mjs
 node test/verify-context-registry-truth.mjs
-node test/verify-official-rules-ui.mjs
 node test/verify-builtin-skill-gap.mjs
 node test/verify-default-data-path.mjs
 node test/regression-scope-lifecycle.mjs

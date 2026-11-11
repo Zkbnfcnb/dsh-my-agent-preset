@@ -57,7 +57,7 @@ const META = {
   capabilities: ['snapshotContexts', 'requiredSuppression'],
   sectionCatalog: [
     { name: 'deployment:persona-prefix', required: true, present: true },
-    { name: 'deployment:persona-suffix', required: true, present: false },
+    { name: 'deployment:persona-suffix', required: false, present: true },
     { name: 'harness:identity', required: false, present: true },
     { name: 'third-party:notes', required: false, present: true },
   ],
@@ -188,7 +188,7 @@ console.log('# 提示词段：批量操作只作用于可见行')
   tree = await studio.root.flush()
   assert.deepEqual(
     [...(saves(studio).at(-1)?.sections ?? [])].sort(),
-    ['harness:identity', 'third-party:notes'],
+    ['deployment:persona-suffix', 'harness:identity', 'third-party:notes'],
     'the optional whitelist survives a filtered bulk edit',
   )
 }

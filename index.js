@@ -439,15 +439,9 @@ export function normalizePreset(input) {
   const name = text(input.name)
   if (id === '' || name === '') return undefined
   const now = new Date().toISOString()
-  // One tool selection now drives both visibility and call refusal, so the
-  // legacy `excludedTools` list is folded in: under `allow` a blocked name is
-  // dropped from the list (it is refused by omission), under `deny` it joins
-  // the list (both effects agree).
+  // One tool selection drives both visibility and call refusal.
   const selection = normalizeToolSelection(input.tools)
-  const legacyBlocked = stringList(input.excludedTools)
-  let toolNames = selection.names
-  if (selection.mode === 'allow') toolNames = toolNames.filter((name) => legacyBlocked.includes(name) === false)
-  else if (selection.mode === 'deny') toolNames = [...new Set([...toolNames, ...legacyBlocked])]
+  const toolNames = selection.names
   return {
     id,
     name,
@@ -587,15 +581,6 @@ export function toDefinition(preset, baselineRows = [], skillIndex = new Map()) 
     const found = skillIndex.get(name)
     return { name, path: text(found?.path), description: text(found?.description) }
   })
-  // Skills are managed independently of the tool list. Without this the allow
-  // list would quietly refuse the `skill` tool and every checked skill with
-  // it — the catalog would not even load. A preset that checks any skill
-  // therefore always keeps `skill`, whatever the list says.
-  const selection = preset.tools ?? { mode: 'all', names: [] }
-  const toolSelection =
-    selection.mode === 'allow' && selectedSkills.length > 0 && selection.names.includes(SKILL_TOOL) === false
-      ? { mode: 'allow', names: [...selection.names, SKILL_TOOL] }
-      : selection
   // The capability row is mounted for EVERY custom preset: its `skills` array
   // is a WHITELIST, and even an empty one must trim the discovered skills out
   // of the model's catalog ("nothing checked" means NONE, not "no trimming").
@@ -607,14 +592,9 @@ export function toDefinition(preset, baselineRows = [], skillIndex = new Map()) 
     id: 'studio-capability',
     name: CAPABILITY_PLUGIN,
     config: {
-      // The capability row installs per-Agent scope, and it can only know
-      // which Agents joined this preset by matching this id against
-      // `agentPresets.composedPreset(agent.ctx)`.
-      presetId: preset.id,
       instructions: preset.instructions,
       instructionMode: preset.instructionMode,
       skills: selectedSkills,
-      tools: toolSelection,
       // The checklist travels with the preset, so the filter a stored preset
       // runs is exactly what its own data file describes.
       ...(Array.isArray(preset.sections) ? { sections: preset.sections } : {}),
@@ -1330,7 +1310,7 @@ export class PresetStore {
    * the rest of the restriction.
    * @returns the restriction disposer, or undefined when nothing was applied.
    */
-  applyRestriction(scopedTools, agent, names, mode) {
+  applyRestriction(scopedTools, names, mode) {
     const request = mode === 'allow' ? { allow: names } : { deny: names }
     try {
       return scopedTools.restrict(request)
@@ -1558,7 +1538,7 @@ export class PresetStore {
         }
         const globalNames = [...listed].filter((name) => restrictable.has(name) && name !== RESERVED_TOOL)
         if (globalNames.length > 0) {
-          state.restriction = this.applyRestriction(scopedTools, agent, globalNames, selection.mode)
+          state.restriction = this.applyRestriction(scopedTools, globalNames, selection.mode)
         }
         state.guards.push(
           scopedTools.guard((execution) => {
@@ -1853,11 +1833,10 @@ export class PresetStore {
    * Section names are read from the RUNNING registry through every scope this
    * process can see (the global layer plus each preset's standing scope), so a
    * section a newer build or a third-party plugin registers is selectable
-   * without a release. The two persona sections are always listed and marked
-   * `required`: they carry this preset's own prompt, the page shows them
-   * checked and disabled, and only the ADVANCED force list may remove them.
-   * `present` reports whether a live scope actually carries the name (a
-   * persona suffix stays absent until the preset stores one).
+   * without a release. The preset's own persona prefix is always listed and
+   * marked `required`: it carries this preset's prompt, the page shows it
+   * checked and disabled, and only the ADVANCED force list may remove it.
+   * `present` reports whether a live scope actually carries the name.
    * @returns rows of `{ name, required, present }`, sorted by name.
    */
   sectionCatalog() {
@@ -2449,7 +2428,7 @@ function registerWeb(ctx, store) {
       delete: (body) => store.run(() => store.remove(body?.id)),
       toggle: (body) => store.run(() => store.toggle(body?.id)),
       inspect: (body) => store.run(() => store.inspectPreset(body?.id, body?.config)),
-      diag: (body) => store.run(() => store.diagnose()),
+      diag: () => store.run(() => store.diagnose()),
       reload: (body) =>
         store.run(async () => {
           // Re-read the DOCUMENT, not just the in-memory list: this endpoint is

@@ -115,6 +115,7 @@ const sectionOf = (assembly, name) => assembly.sections.find((section) => sectio
   const persona = sectionOf(assembly, PERSONA_SECTION)
   assert(persona !== undefined, 'preset persona section present')
   assert.equal(persona.text, AUTHORED, 'preset persona text is exactly the authored text')
+  assert(names.has(PERSONA_SUFFIX), 'the deployment suffix stays while the list is unmanaged')
 }
 
 // 2-3. A keep list selects exact names; everything else is removed.
@@ -151,9 +152,9 @@ const sectionOf = (assembly, name) => assembly.sections.find((section) => sectio
   const assembly = await assembleWith(bundle)
   const names = namesOf(assembly)
   assert(names.has(PERSONA_SECTION) === false, 'force-suppressed persona prefix is removed')
-  // The preset registers no suffix, so the deployment suffix is removed too:
-  // the persona half belongs to this preset, not to the deployment.
-  assert(names.has(PERSONA_SUFFIX) === false, 'the deployment suffix is not borrowed when the preset stores none')
+  // The suffix is not in the keep list, so the deployment suffix is removed
+  // too: the persona half belongs to this preset, not to the deployment.
+  assert(names.has(PERSONA_SUFFIX) === false, 'the deployment suffix is removed when the keep list omits it')
   assert(names.has('harness:plan'), 'other checked sections still inject')
 }
 
